@@ -29,7 +29,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
-          tools: none
+          tools: composer
 
       - name: Validate version metadata
         id: metadata
@@ -62,6 +62,15 @@ jobs:
           fi
 
           echo "plugin_version=${plugin_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install Composer dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f composer.json ]]; then
+            composer validate --no-check-publish
+            composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          fi
 
       - name: Lint PHP files
         shell: bash

@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.20
+Stable tag: 0.1.21
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,14 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.21 =
+* Changed the default Nginx wp-admin alias integration to a simpler rewrite mode that appends an internal alias flag and uses the site's normal PHP handler.
+* Kept the previous direct FastCGI wp-admin alias as an optional compatibility mode for Nginx stacks where standard rewrites are swallowed by the WordPress front controller.
+* Added configurable Nginx admin alias mode, alias query key, and alias token settings.
+* Replaced the custom GitHub updater hooks with a Plugin Update Checker-compatible integration.
+* Added plugin settings for GitHub repository and token so update configuration no longer requires wp-config.php constants.
+* Updated release packaging to install the Plugin Update Checker dependency during CI builds when Composer is available.
 
 = 0.1.20 =
 * Fixed generated Nginx wp-admin alias handling for static admin assets such as `/control/js/common.js`.

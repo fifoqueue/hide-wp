@@ -99,6 +99,7 @@ final readonly class AdminPage {
 		}
 
 		$options             = $this->settings->all();
+		$options['alias_query_token'] = $this->settings->aliasQueryToken();
 		$loginRequested      = $this->settings->loginRequested();
 		$loginEnabled        = $this->settings->loginEnabled();
 		$pathsEnabled        = $this->settings->pathsEnabled() && Marker::isEnabled();
@@ -212,14 +213,46 @@ final readonly class AdminPage {
 
 				<h2><?php echo esc_html__( 'Nginx Integration', 'hide-wp' ); ?></h2>
 				<p class="description">
-					<?php echo esc_html__( 'The Nginx wp-admin alias executes admin PHP files directly through FastCGI. Set this to the same fastcgi_pass target used by your normal PHP location.', 'hide-wp' ); ?>
+					<?php echo esc_html__( 'Standard rewrite mode is simpler and uses your existing PHP handler. FastCGI compatibility mode is only for Nginx stacks where standard rewrites are swallowed by the WordPress front controller.', 'hide-wp' ); ?>
 				</p>
 				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Admin alias mode', 'hide-wp' ); ?></th>
+						<td>
+							<label>
+								<input type="radio" name="<?php echo esc_attr( Settings::OPTION ); ?>[nginx_admin_alias_mode]" value="rewrite" <?php checked( 'rewrite', (string) $options['nginx_admin_alias_mode'] ); ?>>
+								<?php echo esc_html__( 'Standard rewrite mode', 'hide-wp' ); ?>
+							</label><br>
+							<label>
+								<input type="radio" name="<?php echo esc_attr( Settings::OPTION ); ?>[nginx_admin_alias_mode]" value="fastcgi" <?php checked( 'fastcgi', (string) $options['nginx_admin_alias_mode'] ); ?>>
+								<?php echo esc_html__( 'FastCGI compatibility mode', 'hide-wp' ); ?>
+							</label>
+							<p class="description"><?php echo esc_html__( 'Use Standard first. Switch to FastCGI only if /control/admin-ajax.php or admin assets still fall into the theme 404 handler.', 'hide-wp' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="hide-wp-alias-query-key"><?php echo esc_html__( 'Alias query key', 'hide-wp' ); ?></label></th>
+						<td>
+							<input type="text" class="regular-text code" id="hide-wp-alias-query-key" name="<?php echo esc_attr( Settings::OPTION ); ?>[alias_query_key]" value="<?php echo esc_attr( (string) $options['alias_query_key'] ); ?>" placeholder="hidewp_surface_key">
+							<p class="description"><?php echo esc_html__( 'Used only by Standard rewrite mode as an internal rewrite flag. Use lowercase letters, numbers, and underscores.', 'hide-wp' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'Alias token', 'hide-wp' ); ?></th>
+						<td>
+							<code><?php echo esc_html( substr( (string) $options['alias_query_token'], 0, 8 ) . '…' ); ?></code>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Settings::OPTION ); ?>[alias_query_token_rotate]" value="1">
+								<?php echo esc_html__( 'Rotate token on save', 'hide-wp' ); ?>
+							</label>
+							<p class="description"><?php echo esc_html__( 'After changing the key or rotating the token, replace the generated Nginx block and run Verify and Enable again.', 'hide-wp' ); ?></p>
+						</td>
+					</tr>
 					<tr>
 						<th scope="row"><label for="hide-wp-nginx-fastcgi-pass"><?php echo esc_html__( 'Nginx FastCGI pass', 'hide-wp' ); ?></label></th>
 						<td>
 							<input type="text" class="regular-text code" id="hide-wp-nginx-fastcgi-pass" name="<?php echo esc_attr( Settings::OPTION ); ?>[nginx_fastcgi_pass]" value="<?php echo esc_attr( (string) $options['nginx_fastcgi_pass'] ); ?>" placeholder="unix:/run/php/php8.5-fpm.sock">
-							<p class="description"><?php echo esc_html__( 'Examples: unix:/run/php/php8.5-fpm.sock, 127.0.0.1:9000, or a named upstream. Leave blank only if you will edit the generated Nginx block manually.', 'hide-wp' ); ?></p>
+							<p class="description"><?php echo esc_html__( 'Only used by FastCGI compatibility mode. Examples: unix:/run/php/php8.5-fpm.sock, 127.0.0.1:9000, or a named upstream.', 'hide-wp' ); ?></p>
 						</td>
 					</tr>
 				</table>

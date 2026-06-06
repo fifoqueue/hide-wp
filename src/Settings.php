@@ -29,7 +29,10 @@ final class Settings {
 			'remove_discovery_links' => true,
 			'strip_core_version'     => true,
 			'generic_login_errors'   => true,
-			'nginx_fastcgi_pass'    => '',
+			'nginx_admin_alias_mode' => 'rewrite',
+			'nginx_fastcgi_pass'     => '',
+			'alias_query_key'        => 'hidewp_surface_key',
+			'alias_query_token'      => self::defaultAliasQueryToken(),
 			'github_updates_enabled' => true,
 			'github_repository'      => self::defaultGithubRepository(),
 			'github_token'           => '',
@@ -70,6 +73,32 @@ final class Settings {
 
 	public function getBool( string $key ): bool {
 		return true === ( $this->all()[ $key ] ?? false );
+	}
+
+	public function nginxAdminAliasMode(): string {
+		$mode = $this->getString( 'nginx_admin_alias_mode' );
+
+		return in_array( $mode, array( 'rewrite', 'fastcgi' ), true ) ? $mode : 'rewrite';
+	}
+
+	public function aliasQueryKey(): string {
+		$key = $this->getString( 'alias_query_key' );
+
+		return $this->isValidAliasQueryKey( $key ) ? $key : 'hidewp_surface_key';
+	}
+
+	public function aliasQueryToken(): string {
+		$token = $this->getString( 'alias_query_token' );
+		if ( '' !== $token && $this->isValidAliasQueryToken( $token ) ) {
+			return $token;
+		}
+
+		$token = self::generateAliasQueryToken();
+		$options = $this->all();
+		$options['alias_query_token'] = $token;
+		update_option( self::OPTION, $options, false );
+
+		return $token;
 	}
 
 	public function loginEnabled(): bool {
@@ -190,6 +219,12 @@ final class Settings {
 	public function configurationHash(): string {
 		$data = array(
 			'aliases' => array(),
+			'server'  => array(
+				'nginx_admin_alias_mode' => $this->nginxAdminAliasMode(),
+				'nginx_fastcgi_pass'     => $this->getString( 'nginx_fastcgi_pass' ),
+				'alias_query_key'        => $this->aliasQueryKey(),
+				'alias_query_token'      => $this->aliasQueryToken(),
+			),
 			'siteurl' => (string) get_option( 'siteurl', '' ),
 			'home'    => (string) get_option( 'home', '' ),
 		);
@@ -271,6 +306,11 @@ final class Settings {
 		}
 
 
+		$nginxMode = isset( $input['nginx_admin_alias_mode'] ) && is_string( $input['nginx_admin_alias_mode'] )
+			? trim( wp_unslash( $input['nginx_admin_alias_mode'] ) )
+			: (string) $current['nginx_admin_alias_mode'];
+		$result['nginx_admin_alias_mode'] = in_array( $nginxMode, array( 'rewrite', 'fastcgi' ), true ) ? $nginxMode : 'rewrite';
+
 		$nginxFastcgiPass = isset( $input['nginx_fastcgi_pass'] ) && is_string( $input['nginx_fastcgi_pass'] )
 			? trim( wp_unslash( $input['nginx_fastcgi_pass'] ) )
 			: (string) $current['nginx_fastcgi_pass'];
@@ -283,6 +323,26 @@ final class Settings {
 				__( 'The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name.', 'hide-wp' ),
 				'error'
 			);
+		}
+
+		$aliasQueryKey = isset( $input['alias_query_key'] ) && is_string( $input['alias_query_key'] )
+			? strtolower( trim( wp_unslash( $input['alias_query_key'] ) ) )
+			: (string) $current['alias_query_key'];
+		if ( $this->isValidAliasQueryKey( $aliasQueryKey ) ) {
+			$result['alias_query_key'] = $aliasQueryKey;
+		} else {
+			add_settings_error(
+				self::OPTION,
+				'invalid_alias_query_key',
+				__( 'The Nginx alias query key must use 3-32 lowercase letters, numbers, or underscores.', 'hide-wp' ),
+				'error'
+			);
+		}
+
+		if ( isset( $input['alias_query_token_rotate'] ) && '1' === (string) $input['alias_query_token_rotate'] ) {
+			$result['alias_query_token'] = self::generateAliasQueryToken();
+		} elseif ( ! is_string( $result['alias_query_token'] ?? null ) || ! $this->isValidAliasQueryToken( (string) $result['alias_query_token'] ) ) {
+			$result['alias_query_token'] = self::generateAliasQueryToken();
 		}
 
 		$githubRepository = isset( $input['github_repository'] ) && is_string( $input['github_repository'] )
@@ -382,7 +442,11 @@ final class Settings {
 			|| $result['content_slug'] !== $current['content_slug']
 			|| $result['content_enabled'] !== $current['content_enabled']
 			|| $result['includes_slug'] !== $current['includes_slug']
-			|| $result['includes_enabled'] !== $current['includes_enabled'];
+			|| $result['includes_enabled'] !== $current['includes_enabled']
+			|| $result['nginx_admin_alias_mode'] !== $current['nginx_admin_alias_mode']
+			|| $result['nginx_fastcgi_pass'] !== $current['nginx_fastcgi_pass']
+			|| $result['alias_query_key'] !== $current['alias_query_key']
+			|| $result['alias_query_token'] !== $current['alias_query_token'];
 
 		if ( $pathsChanged && $pathsValid && $this->pathsEnabled() ) {
 			add_settings_error(
@@ -419,6 +483,23 @@ final class Settings {
 		return count( array_unique( $slugs ) ) === count( $slugs );
 	}
 
+	private static function defaultAliasQueryToken(): string {
+		if ( defined( 'HIDE_WP_ALIAS_QUERY_TOKEN' ) && is_string( HIDE_WP_ALIAS_QUERY_TOKEN )
+			&& 1 === preg_match( '/\A[A-Za-z0-9_-]{16,128}\z/', HIDE_WP_ALIAS_QUERY_TOKEN ) ) {
+			return HIDE_WP_ALIAS_QUERY_TOKEN;
+		}
+
+		return self::generateAliasQueryToken();
+	}
+
+	private static function generateAliasQueryToken(): string {
+		try {
+			return bin2hex( random_bytes( 24 ) );
+		} catch ( \Throwable ) {
+			return wp_generate_password( 48, false, false );
+		}
+	}
+
 	private static function defaultGithubRepository(): string {
 		if ( defined( 'HIDE_WP_GITHUB_REPOSITORY' ) && is_string( HIDE_WP_GITHUB_REPOSITORY )
 			&& 1 === preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', HIDE_WP_GITHUB_REPOSITORY ) ) {
@@ -438,6 +519,14 @@ final class Settings {
 		return is_string( $token ) ? substr( $token, 0, 255 ) : '';
 	}
 
+	private function isValidAliasQueryKey( string $key ): bool {
+		return 1 === preg_match( '/\A[a-z][a-z0-9_]{2,31}\z/', $key );
+	}
+
+	private function isValidAliasQueryToken( string $token ): bool {
+		return 1 === preg_match( '/\A[A-Za-z0-9_-]{16,128}\z/', $token );
+	}
+
 	private function isValidNginxFastcgiPass( string $value ): bool {
 		return 1 === preg_match( '/\A(?:unix:\/[-A-Za-z0-9_\/.+~]+\.sock|[A-Za-z0-9_.-]+:[0-9]{2,5}|[A-Za-z0-9_.-]+)\z/', $value );
 	}
@@ -450,6 +539,7 @@ final class Settings {
 				continue;
 			}
 			delete_site_transient( 'hide_wp_github_latest_release_' . substr( hash( 'sha256', strtolower( $repository ) ), 0, 12 ) );
+			delete_site_transient( 'hide_wp_puc_latest_' . substr( hash( 'sha256', strtolower( $repository ) ), 0, 12 ) );
 		}
 	}
 

@@ -97,8 +97,8 @@ final readonly class ServerConfig {
 			'# Login front controller fallback.',
 			sprintf( 'rewrite ^%s/?$ %s$is_args$args last;', $login, $index ),
 			'',
-			'# Internal aliases. These are server-rewrite rules, not front-controller fallbacks.',
-			'# They must run before Nginx chooses a generic PHP or WordPress try_files location.',
+			'# Internal aliases. The wp-admin alias supports standard rewrite mode and FastCGI compatibility mode.',
+			'# Place generated location blocks before generic PHP/static locations.',
 			'# The aliases stay active while this server block is installed; remove the block to fully disable them.',
 		);
 
@@ -138,6 +138,32 @@ final readonly class ServerConfig {
 	 * @return list<string>
 	 */
 	private function nginxAdminAliasLocations( string $source, string $target, string $recovery ): array {
+		if ( 'fastcgi' === $this->settings->nginxAdminAliasMode() ) {
+			return $this->nginxAdminAliasFastcgiLocations( $source, $target, $recovery );
+		}
+
+		return $this->nginxAdminAliasRewriteRules( $source, $target, $recovery );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private function nginxAdminAliasRewriteRules( string $source, string $target, string $recovery ): array {
+		$key = $this->settings->aliasQueryKey();
+		$token = $this->settings->aliasQueryToken();
+		$targetPattern = preg_quote( $target, '~' );
+
+		return array(
+			'# wp-admin alias: standard rewrite mode. Uses the site PHP handler and adds an internal alias flag.',
+			sprintf( 'if (!-f "%s") { rewrite ^%s/?$ %s/index.php?%s=%s&$args last; }', $recovery, $targetPattern, $source, $key, $token ),
+			sprintf( 'if (!-f "%s") { rewrite ^%s/(.*)$ %s/$1?%s=%s&$args last; }', $recovery, $targetPattern, $source, $key, $token ),
+		);
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private function nginxAdminAliasFastcgiLocations( string $source, string $target, string $recovery ): array {
 		$root = $this->quoteNginx( rtrim( str_replace( '\\', '/', ABSPATH ), '/' ) );
 		$pass = $this->quoteNginx( $this->settings->getString( 'nginx_fastcgi_pass' ) );
 		if ( '' === $pass ) {
@@ -146,9 +172,10 @@ final readonly class ServerConfig {
 
 		$targetPattern = preg_quote( $target, '~' );
 		$sourcePrefix = rtrim( $source, '/' );
-		$lines = array(
-			'# wp-admin alias: execute admin PHP files through FastCGI directly.',
-			'# Keep these blocks before any generic PHP location. Set Nginx FastCGI pass in plugin settings.',
+
+		return array(
+			'# wp-admin alias: FastCGI compatibility mode. Use only when standard rewrite mode is swallowed by the WordPress front controller.',
+			'# Keep these blocks before any generic PHP/static location. Set Nginx FastCGI pass in plugin settings.',
 			sprintf( 'location = %s {', $target ),
 			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
 			sprintf( '    return 301 %s/;', $target ),
@@ -162,9 +189,9 @@ final readonly class ServerConfig {
 			sprintf( '    fastcgi_param DOCUMENT_ROOT %s;', $root ),
 			sprintf( '    fastcgi_pass %s;', $pass ),
 			'}',
-			sprintf( 'location ~ ^%s/(?<hwp_admin_script>[A-Za-z0-9_./-]+\\.php)$ {', $targetPattern ),
+			sprintf( 'location ~ ^%s/(?<hwp_admin_script>[A-Za-z0-9_./-]+\.php)$ {', $targetPattern ),
 			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
-			'    if ($hwp_admin_script ~ "\\.\\.") { return 404; }',
+			'    if ($hwp_admin_script ~ "\.\.") { return 404; }',
 			sprintf( '    if (!-f %s/wp-admin/$hwp_admin_script) { return 404; }', $root ),
 			'    include fastcgi_params;',
 			sprintf( '    fastcgi_param SCRIPT_FILENAME %s/wp-admin/$hwp_admin_script;', $root ),
@@ -175,7 +202,6 @@ final readonly class ServerConfig {
 			'}',
 			'# wp-admin alias: serve admin static assets directly from wp-admin.',
 			'# Keep this regex location before generic static locations.',
-			'# Use rewrite ... break with an explicit root instead of alias+capture; this avoids Nginx builds/environments that fail variable alias mapping.',
 			sprintf( 'location ~ ^%s/(?!.*\.php$)(?<hwp_admin_asset>[A-Za-z0-9_./-]+)$ {', $targetPattern ),
 			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
 			'    if ($hwp_admin_asset ~ "\.\.") { return 404; }',
@@ -183,8 +209,6 @@ final readonly class ServerConfig {
 			sprintf( '    root %s;', $root ),
 			'}',
 		);
-
-		return $lines;
 	}
 
 

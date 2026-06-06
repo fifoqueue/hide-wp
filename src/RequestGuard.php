@@ -14,6 +14,8 @@ final readonly class RequestGuard {
 	}
 
 	public function boot(): void {
+		$this->removeAliasQueryFlag();
+
 		add_action( 'wp_loaded', array( $this, 'handle' ), 999999 );
 
 		if ( $this->settings->getBool( 'generic_login_errors' ) ) {
@@ -22,6 +24,30 @@ final readonly class RequestGuard {
 				static fn (): string => __( 'Authentication failed.', 'hide-wp' ),
 				PHP_INT_MAX
 			);
+		}
+	}
+
+	private function removeAliasQueryFlag(): void {
+		$key = $this->settings->aliasQueryKey();
+		$token = $this->settings->aliasQueryToken();
+		$value = isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] )
+			? wp_unslash( $_GET[ $key ] )
+			: '';
+
+		if ( '' === $value || ! hash_equals( $token, $value ) ) {
+			return;
+		}
+
+		unset( $_GET[ $key ], $_REQUEST[ $key ] );
+		$queryString = $this->currentQueryString( array( $key ) );
+		$_SERVER['QUERY_STRING'] = $queryString;
+
+		$requestUri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
+			? wp_unslash( $_SERVER['REQUEST_URI'] )
+			: '';
+		$path = is_string( wp_parse_url( $requestUri, PHP_URL_PATH ) ) ? wp_parse_url( $requestUri, PHP_URL_PATH ) : '';
+		if ( '' !== $path ) {
+			$_SERVER['REQUEST_URI'] = $path . ( '' === $queryString ? '' : '?' . $queryString );
 		}
 	}
 
