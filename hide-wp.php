@@ -3,7 +3,7 @@
  * Plugin Name: Hide WP Surface
  * Plugin URI:  https://github.com/fifoqueue/hide-wp-surface
  * Description: Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases.
- * Version:     0.1.7
+ * Version:     0.1.8
  * Update URI:  https://github.com/fifoqueue/hide-wp-surface
  * Requires at least: 7.0
  * Requires PHP: 8.3
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'HIDE_WP_VERSION', '0.1.7' );
+define( 'HIDE_WP_VERSION', '0.1.8' );
 define( 'HIDE_WP_BASENAME', plugin_basename( __FILE__ ) );
 if ( ! defined( 'HIDE_WP_GITHUB_REPOSITORY' ) ) {
 	define( 'HIDE_WP_GITHUB_REPOSITORY', 'fifoqueue/hide-wp-surface' );
@@ -26,11 +26,17 @@ define( 'HIDE_WP_URL', plugin_dir_url( __FILE__ ) );
 
 if ( PHP_VERSION_ID < 80300 || version_compare( (string) ( $GLOBALS['wp_version'] ?? '0' ), '7.0', '<' ) ) {
 	$markerRemovalFailed = false;
-	foreach ( array( 'paths-enabled.php', 'paths-probe.php', 'paths-enabled.flag' ) as $markerFile ) {
-		$markerPath = __DIR__ . '/runtime/' . $markerFile;
-		if ( is_file( $markerPath ) ) {
-			@unlink( $markerPath );
-			$markerRemovalFailed = $markerRemovalFailed || is_file( $markerPath );
+	$markerDirectories    = array( __DIR__ . '/runtime' );
+	if ( defined( 'WP_CONTENT_DIR' ) && is_string( WP_CONTENT_DIR ) && '' !== WP_CONTENT_DIR ) {
+		$markerDirectories[] = rtrim( str_replace( '\\', '/', WP_CONTENT_DIR ), '/' ) . '/hide-wp-surface-runtime';
+	}
+	foreach ( array_unique( $markerDirectories ) as $markerDirectory ) {
+		foreach ( array( 'paths-enabled.php', 'paths-probe.php', 'paths-enabled.flag' ) as $markerFile ) {
+			$markerPath = rtrim( $markerDirectory, '/' ) . '/' . $markerFile;
+			if ( is_file( $markerPath ) ) {
+				@unlink( $markerPath );
+				$markerRemovalFailed = $markerRemovalFailed || is_file( $markerPath );
+			}
 		}
 	}
 

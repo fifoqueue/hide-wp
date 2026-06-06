@@ -8,11 +8,11 @@ defined( 'ABSPATH' ) || exit;
 
 final class Marker {
 	public static function path(): string {
-		return HIDE_WP_DIR . 'runtime/paths-enabled.php';
+		return self::runtimeDirectory() . '/paths-enabled.php';
 	}
 
 	public static function probePath(): string {
-		return HIDE_WP_DIR . 'runtime/paths-probe.php';
+		return self::runtimeDirectory() . '/paths-probe.php';
 	}
 
 	public static function recoveryPath(): string {
@@ -20,27 +20,35 @@ final class Marker {
 	}
 
 	public static function enable(): bool {
-		return self::write( self::path() );
+		return self::writePrimaryAndLegacy( self::path(), self::legacyEnabledPaths() );
 	}
 
 	public static function enableProbe(): bool {
-		return self::write( self::probePath() );
+		return self::writePrimaryAndLegacy( self::probePath(), self::legacyProbePaths() );
 	}
 
 	public static function disableProbe(): bool {
-		if ( is_file( self::probePath() ) ) {
-			@unlink( self::probePath() );
+		foreach ( self::probePaths() as $path ) {
+			if ( is_file( $path ) ) {
+				@unlink( $path );
+			}
 		}
 
-		return ! is_file( self::probePath() );
+		foreach ( self::probePaths() as $path ) {
+			if ( is_file( $path ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	public static function disable(): bool {
 		foreach (
-			array(
-				self::path(),
-				self::probePath(),
-				HIDE_WP_DIR . 'runtime/paths-enabled.flag',
+			array_merge(
+				self::enabledPaths(),
+				self::probePaths(),
+				self::legacyFlagPaths()
 			) as $path
 		) {
 			if ( is_file( $path ) ) {
@@ -48,9 +56,13 @@ final class Marker {
 			}
 		}
 
-		return ! is_file( self::path() )
-			&& ! is_file( self::probePath() )
-			&& ! is_file( HIDE_WP_DIR . 'runtime/paths-enabled.flag' );
+		foreach ( array_merge( self::enabledPaths(), self::probePaths(), self::legacyFlagPaths() ) as $path ) {
+			if ( is_file( $path ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	public static function requestRecovery(): bool {
@@ -71,7 +83,13 @@ final class Marker {
 	}
 
 	public static function isEnabled(): bool {
-		return is_file( self::path() );
+		foreach ( self::enabledPaths() as $path ) {
+			if ( is_file( $path ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	public static function isRecoveryRequested(): bool {
@@ -79,7 +97,113 @@ final class Marker {
 			|| is_file( self::recoveryPath() );
 	}
 
-	private static function write( string $path ): bool {
+	private static function runtimeDirectory(): string {
+		if ( defined( 'HIDE_WP_MARKER_DIR' ) && is_string( HIDE_WP_MARKER_DIR ) && '' !== HIDE_WP_MARKER_DIR ) {
+			return rtrim( str_replace( '\\', '/', HIDE_WP_MARKER_DIR ), '/' );
+		}
+
+		if ( defined( 'WP_CONTENT_DIR' ) && is_string( WP_CONTENT_DIR ) && '' !== WP_CONTENT_DIR ) {
+			return rtrim( str_replace( '\\', '/', WP_CONTENT_DIR ), '/' ) . '/hide-wp-surface-runtime';
+		}
+
+		return rtrim( str_replace( '\\', '/', HIDE_WP_DIR ), '/' ) . '/runtime';
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function enabledPaths(): array {
+		return self::uniquePaths( array_merge( array( self::path() ), self::legacyEnabledPaths() ) );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function probePaths(): array {
+		return self::uniquePaths( array_merge( array( self::probePath() ), self::legacyProbePaths() ) );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function legacyEnabledPaths(): array {
+		return self::legacyRuntimeFiles( 'paths-enabled.php' );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function legacyProbePaths(): array {
+		return self::legacyRuntimeFiles( 'paths-probe.php' );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function legacyFlagPaths(): array {
+		return self::legacyRuntimeFiles( 'paths-enabled.flag' );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function legacyRuntimeFiles( string $filename ): array {
+		$paths = array( rtrim( str_replace( '\\', '/', HIDE_WP_DIR ), '/' ) . '/runtime/' . $filename );
+
+		if ( defined( 'WP_PLUGIN_DIR' ) && is_string( WP_PLUGIN_DIR ) && '' !== WP_PLUGIN_DIR ) {
+			$pluginDir = rtrim( str_replace( '\\', '/', WP_PLUGIN_DIR ), '/' );
+			$paths[]   = $pluginDir . '/hide-wp-surface/runtime/' . $filename;
+			$paths[]   = $pluginDir . '/hide-wp-master/runtime/' . $filename;
+		}
+
+		return self::uniquePaths( $paths );
+	}
+
+	/**
+	 * @param list<string> $paths
+	 * @return list<string>
+	 */
+	private static function uniquePaths( array $paths ): array {
+		$unique = array();
+		foreach ( $paths as $path ) {
+			if ( '' === $path || isset( $unique[ $path ] ) ) {
+				continue;
+			}
+			$unique[ $path ] = $path;
+		}
+
+		return array_values( $unique );
+	}
+
+	/**
+	 * @param list<string> $legacyPaths
+	 */
+	private static function writePrimaryAndLegacy( string $primaryPath, array $legacyPaths ): bool {
+		$success = self::write( $primaryPath, true );
+		if ( ! $success ) {
+			return false;
+		}
+
+		foreach ( $legacyPaths as $legacyPath ) {
+			if ( $legacyPath === $primaryPath || ! is_dir( dirname( $legacyPath ) ) ) {
+				continue;
+			}
+			self::write( $legacyPath, false );
+		}
+
+		return true;
+	}
+
+	private static function write( string $path, bool $createDirectory ): bool {
+		$directory = dirname( $path );
+		if ( ! is_dir( $directory ) ) {
+			if ( ! $createDirectory || ( ! @mkdir( $directory, 0750, true ) && ! is_dir( $directory ) ) ) {
+				return false;
+			}
+		}
+
+		self::writeDenyFiles( $directory );
+
 		$content = "<?php\n\ndefined( 'ABSPATH' ) || exit;\n";
 		$handle  = @fopen( $path, 'x+b' );
 		if ( false === $handle ) {
@@ -108,5 +232,27 @@ final class Marker {
 
 		@chmod( $path, 0640 );
 		return true;
+	}
+
+	private static function writeDenyFiles( string $directory ): void {
+		$index = $directory . '/index.php';
+		if ( ! is_file( $index ) ) {
+			$handle = @fopen( $index, 'x+b' );
+			if ( false !== $handle ) {
+				fwrite( $handle, "<?php\n\ndefined( 'ABSPATH' ) || exit;\n" );
+				fclose( $handle );
+				@chmod( $index, 0640 );
+			}
+		}
+
+		$htaccess = $directory . '/.htaccess';
+		if ( ! is_file( $htaccess ) ) {
+			$handle = @fopen( $htaccess, 'x+b' );
+			if ( false !== $handle ) {
+				fwrite( $handle, "Deny from all\n" );
+				fclose( $handle );
+				@chmod( $htaccess, 0640 );
+			}
+		}
 	}
 }

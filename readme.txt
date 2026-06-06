@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.7
+Stable tag: 0.1.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,12 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.8 =
+* Moved server marker files to a stable wp-content runtime directory to avoid breakage when the plugin folder name changes.
+* Kept compatibility with existing marker files while sites transition to the newly generated server block.
+* Fixed Nginx original-path blocking so internally rewritten admin aliases are not mistaken for direct wp-admin requests.
+
 
 = 0.1.7 =
 

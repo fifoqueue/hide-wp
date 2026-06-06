@@ -51,6 +51,18 @@ final readonly class AdminPage {
 		);
 	}
 
+  public function addPluginActionLinks( array $links ): array {
+    $settingsLink = sprintf(
+      '<a href="%s">%s</a>',
+      esc_url( admin_url( 'options-general.php?page=' . self::PAGE ) ),
+      esc_html__( 'Settings', 'hide-wp' )
+    );
+
+    array_unshift( $links, $settingsLink );
+
+    return $links;
+  }
+
 	public function enqueueAssets( string $hook ): void {
 		if ( 'settings_page_' . self::PAGE !== $hook ) {
 			return;
@@ -74,18 +86,6 @@ final readonly class AdminPage {
 			)
 		);
 	}
-
-  public function addPluginActionLinks( array $links ): array {
-    $settingsLink = sprintf(
-      '<a href="%s">%s</a>',
-      esc_url( admin_url( 'options-general.php?page=' . self::PAGE ) ),
-      esc_html__( 'Settings', 'hide-wp' )
-    );
-
-    array_unshift( $links, $settingsLink );
-
-    return $links;
-  }
 
 	public function render(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
