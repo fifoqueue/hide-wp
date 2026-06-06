@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Hide WP Surface 0.1.24\n"
+"Project-Id-Version: Hide WP Surface 0.1.25\n"
 "Report-Msgid-Bugs-To: https://github.com/fifoqueue/hide-wp-surface/issues\n"
 "Last-Translator: fifoqueue\n"
 "Language-Team: Korean\n"
@@ -367,7 +367,7 @@ msgstr "활성화 차단됨"
 msgid "Hide WP Surface cannot be activated on multisite. Login and server aliases require one verified configuration per origin."
 msgstr "멀티사이트에서는 Hide WP Surface를 활성화할 수 없습니다. 로그인 및 서버 별칭에는 출처별로 하나의 검증된 설정이 필요합니다."
 
-#: src/RequestGuard.php:26
+#: src/RequestGuard.php:27
 msgid "Authentication failed."
 msgstr "인증에 실패했습니다."
 

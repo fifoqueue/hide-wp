@@ -16,6 +16,7 @@ final class RequestGuard {
 	}
 
 	public function boot(): void {
+		$this->preventLoginCaching();
 		$this->removeAliasQueryFlag();
 
 		add_action( 'wp_loaded', array( $this, 'handle' ), 999999 );
@@ -29,17 +30,42 @@ final class RequestGuard {
 		}
 	}
 
-	private function removeAliasQueryFlag(): void {
-		$key = $this->settings->aliasQueryKey();
-		$token = $this->settings->aliasQueryToken();
-		$value = isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] )
-			? wp_unslash( $_GET[ $key ] )
-			: '';
-
-		if ( '' === $value || ! hash_equals( $token, $value ) ) {
+	private function preventLoginCaching(): void {
+		if ( ! $this->isLoginAliasRequest() ) {
 			return;
 		}
 
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+
+		if ( ! defined( 'DONOTMINIFY' ) ) {
+			define( 'DONOTMINIFY', true );
+		}
+
+		nocache_headers();
+	}
+
+	private function isLoginAliasRequest(): bool {
+		if ( ! $this->settings->loginRequested() ) {
+			return false;
+		}
+
+		$path = $this->requestPath();
+		if ( $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) ) ) {
+			return true;
+		}
+
+		return $this->hasValidAliasQueryFlag()
+			&& $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'login' ) );
+	}
+
+	private function removeAliasQueryFlag(): void {
+		if ( ! $this->hasValidAliasQueryFlag() ) {
+			return;
+		}
+
+		$key = $this->settings->aliasQueryKey();
 		$this->hasAliasQueryFlag = true;
 
 		if ( ! defined( 'HIDE_WP_ALIAS_REQUEST' ) ) {
@@ -69,6 +95,15 @@ final class RequestGuard {
 		if ( '' !== $path ) {
 			$_SERVER['REQUEST_URI'] = $path . ( '' === $queryString ? '' : '?' . $queryString );
 		}
+	}
+
+	private function hasValidAliasQueryFlag(): bool {
+		$key = $this->settings->aliasQueryKey();
+		$value = isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] )
+			? wp_unslash( $_GET[ $key ] )
+			: '';
+
+		return '' !== $value && hash_equals( $this->settings->aliasQueryToken(), $value );
 	}
 
 	public function handle(): void {

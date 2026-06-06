@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.24
+Stable tag: 0.1.25
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.25 =
+* Prevented custom login responses from being stored by page-cache plugins through the widely supported `DONOTCACHEPAGE` signal and no-cache response headers.
+* Requested an optimization bypass through the conventional `DONOTMINIFY` signal without depending on cache-plugin-specific hooks.
+* Kept cache exclusions scoped to the configured login alias so normal front-end pages remain cacheable.
 
 = 0.1.24 =
 * Normalized server-rewritten login aliases to the native wp-login.php request context before login rendering and OIDC plugins run.
