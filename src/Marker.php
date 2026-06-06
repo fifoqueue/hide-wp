@@ -216,7 +216,7 @@ final class Marker {
 		self::writeDenyFiles( $directory );
 
 		$content = "<?php\n\ndefined( 'ABSPATH' ) || exit;\n";
-		$handle  = @fopen( $path, 'x+b' );
+		$handle  = @fopen( $path, 'c+b' );
 		if ( false === $handle ) {
 			return false;
 		}

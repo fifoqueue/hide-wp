@@ -92,10 +92,13 @@ final readonly class ServerConfig {
 
 		$lines = array(
 			'# BEGIN Hide WP Surface',
-			'# Place inside the WordPress server {} block, before the generic location rules.',
+			'# Place this block directly inside the WordPress server {} block, not inside location /.',
+			'# It must appear before generic PHP/static locations so the alias locations below win.',
+			'',
 			'# Login front controller fallback.',
 			sprintf( 'rewrite ^%s/?$ %s$is_args$args last;', $login, $index ),
 			'',
+			'# Runtime switches. The probe marker is used only while Verify and Enable is running.',
 			'set $hwp_aliases_enabled 0;',
 			sprintf( 'if (-f "%s") { set $hwp_aliases_enabled 1; }', $marker ),
 			sprintf( 'if (-f "%s") { set $hwp_aliases_enabled 1; }', $probe ),
@@ -103,27 +106,44 @@ final readonly class ServerConfig {
 			'set $hwp_paths_enabled 0;',
 			sprintf( 'if (-f "%s") { set $hwp_paths_enabled 1; }', $marker ),
 			sprintf( 'if (-f "%s") { set $hwp_paths_enabled 0; }', $recovery ),
-			'# Detect only the original client request path, not the internally rewritten alias target.',
+			'',
+			'# Send original WordPress paths to WordPress so the active theme renders its 404 template.',
+			'# This uses the original client request URI and should stay in server context.',
 			'set $hwp_original_path 0;',
 			'set $hwp_original_path_value "";',
 			sprintf( 'if ($request_uri ~* "^((?:%s)(?:[/?]|$)[^?]*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; }', $sources ),
 			'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";',
 			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s?hide_wp_original_path=$hwp_original_path_value&$args last; }', $index ),
 			'',
-			'# Internal aliases.',
+			'# Internal aliases. These location blocks intentionally use ^~ so requests such as',
+			'# /control/admin-ajax.php are not captured by a generic ~ \\.php$ location first.',
 		);
 
 		foreach ( $aliases as $alias ) {
 			$source = $alias['source'];
-			$target = preg_quote( $alias['target'], '~' );
+			$target = $alias['target'];
+			$targetPattern = preg_quote( $target, '~' );
+			$targetPrefix  = rtrim( $target, '/' ) . '/';
 
-			$lines[] = 'if ($hwp_aliases_enabled = 1) {';
 			if ( 'admin' === $alias['type'] ) {
-				$lines[] = sprintf( '    rewrite ^%1$s/?$ %2$s/index.php$is_args$args last;', $target, $source );
-				$lines[] = sprintf( '    rewrite ^%1$s/(.+)$ %2$s/$1$is_args$args last;', $target, $source );
-			} else {
-				$lines[] = sprintf( '    rewrite ^%1$s(?:/(.*))?/?$ %2$s/$1$is_args$args last;', $target, $source );
+				$lines[] = sprintf( 'location = %s {', $target );
+				$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
+				$lines[] = sprintf( '    rewrite ^ %s/index.php$is_args$args last;', $source );
+				$lines[] = '}';
+				$lines[] = sprintf( 'location ^~ %s {', $targetPrefix );
+				$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
+				$lines[] = sprintf( '    rewrite ^%s(.+)$ %s/$1$is_args$args last;', $targetPattern . '/', $source );
+				$lines[] = '}';
+				continue;
 			}
+
+			$lines[] = sprintf( 'location = %s {', $target );
+			$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
+			$lines[] = sprintf( '    rewrite ^ %s/$is_args$args last;', $source );
+			$lines[] = '}';
+			$lines[] = sprintf( 'location ^~ %s {', $targetPrefix );
+			$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
+			$lines[] = sprintf( '    rewrite ^%s(.*)$ %s/$1$is_args$args last;', $targetPattern . '/', $source );
 			$lines[] = '}';
 		}
 
@@ -131,6 +151,7 @@ final readonly class ServerConfig {
 
 		return implode( "\n", $lines );
 	}
+
 
 	/**
 	 * @return list<array{type: string, source: string, target: string}>
