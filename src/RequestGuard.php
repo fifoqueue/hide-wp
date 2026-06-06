@@ -45,7 +45,7 @@ final readonly class RequestGuard {
 		}
 
 		if ( $this->shouldServeAdminAlias( $path ) ) {
-			if ( $this->isAlreadyExecutingAdminAliasTarget( $path ) ) {
+			if ( $this->isAdminBootstrapActive() || $this->isAlreadyExecutingAdminAliasTarget( $path ) ) {
 				return;
 			}
 
@@ -115,6 +115,11 @@ final readonly class RequestGuard {
 		$relative  = ltrim( substr( $this->normalizePath( $path ), strlen( untrailingslashit( $this->normalizePath( $aliasPath ) ) ) ), '/' );
 
 		return '' === $relative ? 'index.php' : $relative;
+	}
+
+
+	private function isAdminBootstrapActive(): bool {
+		return defined( 'WP_ADMIN' ) && true === WP_ADMIN;
 	}
 
 	private function isAlreadyExecutingAdminAliasTarget( string $path ): bool {

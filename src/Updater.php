@@ -52,6 +52,7 @@ final class Updater {
 		}
 
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'filterUpdateTransient' ) );
+		add_filter( 'site_transient_update_plugins', array( $this, 'filterUpdateTransient' ) );
 		add_filter( 'update_plugins_github.com', array( $this, 'filterUpdateUri' ), 10, 4 );
 		add_filter( 'plugins_api', array( $this, 'pluginInfo' ), 20, 3 );
 		add_action( 'upgrader_process_complete', array( $this, 'clearCacheAfterUpgrade' ), 10, 2 );
@@ -106,6 +107,7 @@ final class Updater {
 		}
 
 		return array(
+			'id'           => $this->repositoryUrl(),
 			'slug'         => self::SLUG,
 			'version'      => $updateObject->new_version,
 			'url'          => $updateObject->url,
@@ -191,6 +193,7 @@ final class Updater {
 		$update->slug = self::SLUG;
 		$update->plugin = HIDE_WP_BASENAME;
 		$update->new_version = $version;
+		$update->version = $version;
 		$update->url = is_string( $release['html_url'] ?? null ) ? $release['html_url'] : $this->repositoryUrl();
 		$update->package = $package;
 		$update->tested = '7.0';

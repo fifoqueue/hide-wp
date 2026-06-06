@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.11
+Stable tag: 0.1.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,10 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.12 =
+* Fixed admin alias fallback so it does not re-enter WordPress admin bootstrap when the web server has already routed the request to wp-admin.
+* Improved GitHub updater compatibility by stamping release packages with the current GitHub repository and by exposing update data through both WordPress update transient paths.
 
 = 0.1.11 =
 * Fixed a fatal error when an admin alias request was already rewritten to a wp-admin PHP script by the web server.

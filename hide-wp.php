@@ -3,7 +3,7 @@
  * Plugin Name: Hide WP Surface
  * Plugin URI:  https://github.com/fifoqueue/hide-wp-surface
  * Description: Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases.
- * Version:     0.1.11
+ * Version:     0.1.12
  * Update URI:  https://github.com/fifoqueue/hide-wp-surface
  * Requires at least: 7.0
  * Requires PHP: 8.3
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'HIDE_WP_VERSION', '0.1.11' );
+define( 'HIDE_WP_VERSION', '0.1.12' );
 define( 'HIDE_WP_BASENAME', plugin_basename( __FILE__ ) );
 if ( ! defined( 'HIDE_WP_GITHUB_REPOSITORY' ) ) {
 	define( 'HIDE_WP_GITHUB_REPOSITORY', 'fifoqueue/hide-wp-surface' );

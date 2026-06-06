@@ -73,6 +73,27 @@ jobs:
             -path './dist' -prune -o \
             -name '*.php' -print0 | xargs -0 -n 1 php -l
 
+      - name: Stamp GitHub repository metadata
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          php -r '
+            $repo = getenv("RELEASE_REPOSITORY");
+            if (!preg_match("/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/", $repo)) {
+                fwrite(STDERR, "Invalid GitHub repository: " . $repo . PHP_EOL);
+                exit(1);
+            }
+            $file = "hide-wp.php";
+            $source = file_get_contents($file);
+            $source = preg_replace("/Plugin URI:\s+https:\/\/github\.com\/[^\r\n]+/", "Plugin URI:  https://github.com/" . $repo, $source);
+            $source = preg_replace("/Update URI:\s+https:\/\/github\.com\/[^\r\n]+/", "Update URI:  https://github.com/" . $repo, $source);
+            $source = preg_replace("/define\( '''HIDE_WP_GITHUB_REPOSITORY''', '''[^''']+''' \);/", "define( '''HIDE_WP_GITHUB_REPOSITORY''', '''" . $repo . "''' );", $source);
+            file_put_contents($file, $source);
+          '
+
       - name: Extract release notes
         shell: bash
         run: |
