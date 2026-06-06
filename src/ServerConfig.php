@@ -82,7 +82,6 @@ final readonly class ServerConfig {
 	public function nginx(): string {
 		$aliases  = $this->absoluteAliasSpecs();
 		$marker   = $this->quoteNginx( str_replace( '\\', '/', Marker::path() ) );
-		$probe    = $this->quoteNginx( str_replace( '\\', '/', Marker::probePath() ) );
 		$recovery = $this->quoteNginx( str_replace( '\\', '/', Marker::recoveryPath() ) );
 		$blocked  = array_merge( array_column( $aliases, 'source' ), $this->absoluteDisclosurePaths() );
 		$sources  = implode( '|', array_map( static fn ( string $path ): string => preg_quote( $path, '~' ), $blocked ) );
@@ -92,63 +91,44 @@ final readonly class ServerConfig {
 
 		$lines = array(
 			'# BEGIN Hide WP Surface',
-			'# Place this block directly inside the WordPress server {} block, not inside location /.',
-			'# It must appear before generic PHP/static locations so the alias locations below win.',
+			'# Place this block directly inside the WordPress server {} block, before location / and PHP/static locations.',
+			'# Do not place it inside another location block.',
 			'',
 			'# Login front controller fallback.',
 			sprintf( 'rewrite ^%s/?$ %s$is_args$args last;', $login, $index ),
 			'',
-			'# Runtime switches. The probe marker is used only while Verify and Enable is running.',
-			'set $hwp_aliases_enabled 0;',
-			sprintf( 'if (-f "%s") { set $hwp_aliases_enabled 1; }', $marker ),
-			sprintf( 'if (-f "%s") { set $hwp_aliases_enabled 1; }', $probe ),
-			sprintf( 'if (-f "%s") { set $hwp_aliases_enabled 0; }', $recovery ),
-			'set $hwp_paths_enabled 0;',
-			sprintf( 'if (-f "%s") { set $hwp_paths_enabled 1; }', $marker ),
-			sprintf( 'if (-f "%s") { set $hwp_paths_enabled 0; }', $recovery ),
-			'',
-			'# Send original WordPress paths to WordPress so the active theme renders its 404 template.',
-			'# This uses the original client request URI and should stay in server context.',
-			'set $hwp_original_path 0;',
-			'set $hwp_original_path_value "";',
-			sprintf( 'if ($request_uri ~* "^((?:%s)(?:[/?]|$)[^?]*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; }', $sources ),
-			'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";',
-			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s?hide_wp_original_path=$hwp_original_path_value&$args last; }', $index ),
-			'',
-			'# Internal aliases. These location blocks intentionally use ^~ so requests such as',
-			'# /control/admin-ajax.php are not captured by a generic ~ \\.php$ location first.',
+			'# Internal aliases. These are server-rewrite rules, not front-controller fallbacks.',
+			'# They must run before Nginx chooses a generic PHP or WordPress try_files location.',
+			'# The aliases stay active while this server block is installed; remove the block to fully disable them.',
 		);
 
 		foreach ( $aliases as $alias ) {
 			$source = $alias['source'];
 			$target = $alias['target'];
 			$targetPattern = preg_quote( $target, '~' );
-			$targetPrefix  = rtrim( $target, '/' ) . '/';
 
 			if ( 'admin' === $alias['type'] ) {
-				$lines[] = sprintf( 'location = %s {', $target );
-				$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
-				$lines[] = '    # wp-admin must execute through its native entry points; do not proxy it through index.php.';
-				$lines[] = sprintf( '    rewrite ^ %s/index.php$is_args$args last;', $source );
-				$lines[] = '}';
-				$lines[] = sprintf( 'location ^~ %s {', $targetPrefix );
-				$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
-				$lines[] = '    # Keep this before generic PHP/static locations; /control/load-styles.php must become /wp-admin/load-styles.php.';
-				$lines[] = sprintf( '    rewrite ^%s(.*)$ %s/$1$is_args$args last;', $targetPattern . '/', $source );
-				$lines[] = '}';
+				$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/?$ %s/index.php$is_args$args last; }', $recovery, $targetPattern, $source );
+				$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/(.*)$ %s/$1$is_args$args last; }', $recovery, $targetPattern, $source );
 				continue;
 			}
 
-			$lines[] = sprintf( 'location = %s {', $target );
-			$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
-			$lines[] = sprintf( '    rewrite ^ %s/$is_args$args last;', $source );
-			$lines[] = '}';
-			$lines[] = sprintf( 'location ^~ %s {', $targetPrefix );
-			$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
-			$lines[] = sprintf( '    rewrite ^%s(.*)$ %s/$1$is_args$args last;', $targetPattern . '/', $source );
-			$lines[] = '}';
+			$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/?$ %s/$is_args$args last; }', $recovery, $targetPattern, $source );
+			$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/(.*)$ %s/$1$is_args$args last; }', $recovery, $targetPattern, $source );
 		}
 
+		$lines[] = '';
+		$lines[] = '# Runtime switch for blocking original WordPress paths only.';
+		$lines[] = 'set $hwp_paths_enabled 0;';
+		$lines[] = sprintf( 'if (-f "%s") { set $hwp_paths_enabled 1; }', $marker );
+		$lines[] = sprintf( 'if (-f "%s") { set $hwp_paths_enabled 0; }', $recovery );
+		$lines[] = '';
+		$lines[] = '# Send original WordPress paths to WordPress so the active theme renders its 404 template.';
+		$lines[] = 'set $hwp_original_path 0;';
+		$lines[] = 'set $hwp_original_path_value "";';
+		$lines[] = sprintf( 'if ($request_uri ~* "^((?:%s)(?:[/?]|$)[^?]*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; }', $sources );
+		$lines[] = 'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";';
+		$lines[] = sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s?hide_wp_original_path=$hwp_original_path_value&$args last; }', $index );
 		$lines[] = '# END Hide WP Surface';
 
 		return implode( "\n", $lines );

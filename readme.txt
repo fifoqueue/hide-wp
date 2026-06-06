@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.16
+Stable tag: 0.1.17
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,10 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.17 =
+* Changed generated Nginx admin alias routing to server-level native rewrites so /control/admin-ajax.php and load-styles.php reach wp-admin before generic WordPress front-controller handling.
+* Added stronger updater diagnostics support for custom GitHub releases.
 
 = 0.1.16 =
 * Restored wp-admin aliases to direct server rewrites so WordPress admin bootstrap, load-styles.php, and load-scripts.php execute in their native context.
