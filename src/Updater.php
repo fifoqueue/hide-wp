@@ -35,6 +35,7 @@ use function wpautop;
 use function wp_kses_post;
 
 use const HOUR_IN_SECONDS;
+use const MINUTE_IN_SECONDS;
 
 final class Updater {
 	private const SLUG = 'hide-wp-surface';
@@ -52,6 +53,7 @@ final class Updater {
 		}
 
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'filterUpdateTransient' ) );
+		add_filter( 'update_plugins_github.com', array( $this, 'filterUpdateUri' ), 10, 4 );
 		add_filter( 'plugins_api', array( $this, 'pluginInfo' ), 20, 3 );
 		add_action( 'upgrader_process_complete', array( $this, 'clearCacheAfterUpgrade' ), 10, 2 );
 	}
@@ -81,6 +83,40 @@ final class Updater {
 		$transient->response[ HIDE_WP_BASENAME ] = $update;
 
 		return $transient;
+	}
+
+	/**
+	 * Provides update data through WordPress' official Update URI flow.
+	 *
+	 * @param mixed $update Existing update data for this Update URI host.
+	 * @param array<string, mixed> $pluginData Plugin headers from get_plugins().
+	 * @param string $pluginFile Plugin basename being checked.
+	 * @param string[] $locales Installed locales to look up translations for.
+	 * @return mixed
+	 */
+	public function filterUpdateUri( mixed $update, array $pluginData, string $pluginFile, array $locales ): mixed {
+		unset( $pluginData, $locales );
+
+		if ( HIDE_WP_BASENAME !== $pluginFile ) {
+			return $update;
+		}
+
+		$updateObject = $this->buildUpdateObject();
+		if ( null === $updateObject ) {
+			return false;
+		}
+
+		return array(
+			'slug'         => self::SLUG,
+			'version'      => $updateObject->new_version,
+			'url'          => $updateObject->url,
+			'package'      => $updateObject->package,
+			'tested'       => $updateObject->tested,
+			'requires'     => $updateObject->requires,
+			'requires_php' => $updateObject->requires_php,
+			'icons'        => array(),
+			'banners'      => array(),
+		);
 	}
 
 	/**
@@ -201,6 +237,11 @@ final class Updater {
 			return null;
 		}
 
+		if ( '' === $this->packageUrl( $release ) ) {
+			$this->cacheFailure( 5 * MINUTE_IN_SECONDS );
+			return null;
+		}
+
 		set_site_transient(
 			self::CACHE_KEY,
 			array(
@@ -213,13 +254,13 @@ final class Updater {
 		return $release;
 	}
 
-	private function cacheFailure(): void {
+	private function cacheFailure( int $ttl = HOUR_IN_SECONDS ): void {
 		set_site_transient(
 			self::CACHE_KEY,
 			array(
 				'ok' => false,
 			),
-			HOUR_IN_SECONDS
+			$ttl
 		);
 	}
 

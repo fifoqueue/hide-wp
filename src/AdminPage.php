@@ -25,6 +25,8 @@ final readonly class AdminPage {
 		add_action( 'wp_ajax_hide_wp_verify_login', array( $this, 'verifyLogin' ) );
 		add_action( 'wp_ajax_hide_wp_verify_paths', array( $this, 'verifyPaths' ) );
 		add_action( 'wp_ajax_hide_wp_disable_paths', array( $this, 'disablePaths' ) );
+
+    add_filter( 'plugin_action_links_' . HIDE_WP_BASENAME, array( $this, 'addPluginActionLinks' ) );
 	}
 
 	public function addMenu(): void {
@@ -72,6 +74,18 @@ final readonly class AdminPage {
 			)
 		);
 	}
+
+  public function addPluginActionLinks( array $links ): array {
+    $settingsLink = sprintf(
+      '<a href="%s">%s</a>',
+      esc_url( admin_url( 'options-general.php?page=' . self::PAGE ) ),
+      esc_html__( 'Settings', 'hide-wp' )
+    );
+
+    array_unshift( $links, $settingsLink );
+
+    return $links;
+  }
 
 	public function render(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {

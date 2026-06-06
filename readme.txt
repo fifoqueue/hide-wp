@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.6
+Stable tag: 0.1.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,13 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.7 =
+
+* Fixed GitHub update detection for plugins with an `Update URI` header by adding WordPress' hostname-specific `update_plugins_github.com` update provider.
+* Fixed update payload compatibility by returning the `version` field required by WordPress' Update URI update flow.
+* Improved GitHub release caching so releases without an attached ZIP package are not cached as successful update metadata for six hours.
+* Kept the legacy update transient filter as a compatibility fallback for older/custom update checks.
 
 = 0.1.6 =
 
