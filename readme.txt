@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,7 +57,7 @@ Hide WP Surface can check the public GitHub Releases API for updates from `fifoq
 1. Bump the `Version` header in `hide-wp.php`, `HIDE_WP_VERSION`, and the `Stable tag` in `readme.txt`.
 2. Add a changelog entry for the new version.
 3. Commit the change and push it to `main` or `master`.
-4. The workflow reads the plugin version, creates the matching tag such as `v0.1.4`, builds `hide-wp-master.zip`, and uploads it to the GitHub Release.
+4. The workflow reads the plugin version, creates the matching tag such as `v0.1.5`, builds `hide-wp-surface.zip`, and uploads it to the GitHub Release.
 5. If the matching version tag already exists, the workflow fails so an existing release is not overwritten accidentally.
 
 The updater prefers release assets named `hide-wp-surface.zip`, `hide-wp-master.zip`, or `hide-wp.zip`, and otherwise uses the first `.zip` release asset. Commits update WordPress only after the workflow creates a versioned GitHub Release with a ZIP asset.
@@ -91,6 +91,13 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.5 =
+
+* Fixed a fatal error on OIDC and cache-plugin logout flows where third-party code calls the `send_auth_cookies` filter with fewer arguments than WordPress passes during normal login.
+* Added explicit alias-cookie clearing on WordPress' `clear_auth_cookie` action instead of treating shortened `send_auth_cookies` calls as a full login-cookie event.
+* Renamed the generated release package and top-level plugin directory from `hide-wp-master` to `hide-wp-surface`.
+* Updated the GitHub Actions release workflow to build `hide-wp-surface.zip` with a `hide-wp-surface/` top-level directory.
 
 = 0.1.4 =
 

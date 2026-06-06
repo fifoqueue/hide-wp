@@ -21,6 +21,7 @@ final class AuthCookieBridge {
 	public function boot(): void {
 		add_action( 'set_auth_cookie', array( $this, 'rememberAuthCookie' ), PHP_INT_MAX, 6 );
 		add_filter( 'send_auth_cookies', array( $this, 'sendAliasAuthCookie' ), PHP_INT_MAX, 6 );
+		add_action( 'clear_auth_cookie', array( $this, 'clearAliasAuthCookies' ), PHP_INT_MAX );
 	}
 
 	public function rememberAuthCookie(
@@ -40,24 +41,41 @@ final class AuthCookieBridge {
 		);
 	}
 
+	/**
+	 * Mirrors WordPress authentication cookies to the verified admin alias path.
+	 *
+	 * Some plugins call the documented send_auth_cookies filter with only the
+	 * first argument while clearing cookies. Keep this callback permissive so
+	 * those calls return unchanged instead of fataling under strict types.
+	 *
+	 * @param mixed $send Whether core should send auth cookies. Usually bool.
+	 * @param mixed $expire Auth cookie grace expiration timestamp.
+	 * @param mixed $expiration Logged-in cookie expiration timestamp.
+	 * @param mixed $userId User ID.
+	 * @param mixed $scheme Auth cookie scheme.
+	 * @param mixed $token Session token.
+	 * @return mixed The original filter value unless a normal boolean send decision is being filtered.
+	 */
 	public function sendAliasAuthCookie(
-		bool $send,
-		int $expire,
-		int $expiration,
-		int $userId,
-		string $scheme,
-		string $token
-	): bool {
-		unset( $token );
+		mixed $send,
+		mixed $expire = null,
+		mixed $expiration = null,
+		mixed $userId = null,
+		mixed $scheme = null,
+		mixed $token = null
+	): mixed {
+		unset( $expiration, $userId, $token );
+
+		if ( ! is_bool( $send ) ) {
+			return $send;
+		}
 
 		if ( ! $send || ! $this->settings->activeAliasEnabled( 'admin' ) || headers_sent() ) {
 			$this->pendingCookie = null;
 			return $send;
 		}
 
-		if ( 0 === $expire && 0 === $expiration && 0 === $userId && '' === $scheme ) {
-			$this->expireAliasCookies();
-			$this->pendingCookie = null;
+		if ( ! is_int( $expire ) || ! is_string( $scheme ) || '' === $scheme ) {
 			return $send;
 		}
 
@@ -71,11 +89,21 @@ final class AuthCookieBridge {
 		$this->setAliasCookie(
 			$this->cookieName( $scheme ),
 			$cookie['value'],
-			$cookie['expire'],
+			$expire,
 			'secure_auth' === $scheme
 		);
 
 		return $send;
+	}
+
+	public function clearAliasAuthCookies(): void {
+		$this->pendingCookie = null;
+
+		if ( ! $this->settings->activeAliasEnabled( 'admin' ) || headers_sent() ) {
+			return;
+		}
+
+		$this->expireAliasCookies();
 	}
 
 	public function mirrorCurrentAuthCookie(): bool {

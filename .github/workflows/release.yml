@@ -18,8 +18,8 @@ jobs:
     outputs:
       plugin_version: ${{ steps.metadata.outputs.plugin_version }}
     env:
-      PLUGIN_DIR: hide-wp-master
-      ZIP_NAME: hide-wp-master.zip
+      PLUGIN_DIR: hide-wp-surface
+      ZIP_NAME: hide-wp-surface.zip
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -117,7 +117,7 @@ jobs:
         with:
           name: hide-wp-surface-package
           path: |
-            dist/hide-wp-master.zip
+            dist/hide-wp-surface.zip
             release-notes.md
           retention-days: 14
 
@@ -151,7 +151,7 @@ jobs:
         run: |
           set -euo pipefail
           tag_name="v${PLUGIN_VERSION}"
-          zip_path='release-dist/dist/hide-wp-master.zip'
+          zip_path='release-dist/dist/hide-wp-surface.zip'
           notes_path='release-dist/release-notes.md'
 
           if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
