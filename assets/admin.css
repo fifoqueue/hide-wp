@@ -1,0 +1,27 @@
+.hide-wp-wrap {
+	max-width: 1100px;
+}
+
+.hide-wp-config {
+	min-height: 280px;
+	white-space: pre;
+}
+
+.hide-wp-ok {
+	color: #008a20;
+	font-weight: 600;
+}
+
+.hide-wp-off {
+	color: #646970;
+}
+
+.hide-wp-error {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+#hide-wp-result,
+#hide-wp-login-result {
+	margin-left: 10px;
+}
