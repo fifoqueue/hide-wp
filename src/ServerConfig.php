@@ -114,22 +114,24 @@ final readonly class ServerConfig {
 	 * @return array<string, string>
 	 */
 	private function relativeAliases(): array {
-		return array(
-			basename( $this->mapper->sourcePath( 'admin' ) )    => basename( $this->mapper->targetPath( 'admin' ) ),
-			basename( $this->mapper->sourcePath( 'content' ) )  => basename( $this->mapper->targetPath( 'content' ) ),
-			basename( $this->mapper->sourcePath( 'includes' ) ) => basename( $this->mapper->targetPath( 'includes' ) ),
-		);
+		$aliases = array();
+		foreach ( $this->mapper->requestedAliasTypes() as $type ) {
+			$aliases[ basename( $this->mapper->sourcePath( $type ) ) ] = basename( $this->mapper->targetPath( $type ) );
+		}
+
+		return $aliases;
 	}
 
 	/**
 	 * @return array<string, string>
 	 */
 	private function absoluteAliases(): array {
-		return array(
-			$this->mapper->sourcePath( 'admin' )    => $this->mapper->targetPath( 'admin' ),
-			$this->mapper->sourcePath( 'content' )  => $this->mapper->targetPath( 'content' ),
-			$this->mapper->sourcePath( 'includes' ) => $this->mapper->targetPath( 'includes' ),
-		);
+		$aliases = array();
+		foreach ( $this->mapper->requestedAliasTypes() as $type ) {
+			$aliases[ $this->mapper->sourcePath( $type ) ] = $this->mapper->targetPath( $type );
+		}
+
+		return $aliases;
 	}
 
 	/**

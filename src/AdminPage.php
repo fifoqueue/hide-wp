@@ -78,12 +78,14 @@ final readonly class AdminPage {
 			wp_die( esc_html__( 'You are not allowed to manage these settings.', 'hide-wp' ) );
 		}
 
-		$options          = $this->settings->all();
-		$loginRequested   = $this->settings->loginRequested();
-		$loginEnabled     = $this->settings->loginEnabled();
-		$pathsEnabled     = $this->settings->pathsEnabled() && Marker::isEnabled();
-		$aliasesSupported = $this->mapper->supportsVerifiedAliases();
-		$loginUrl         = $this->mapper->rewriteUrl(
+		$options             = $this->settings->all();
+		$loginRequested      = $this->settings->loginRequested();
+		$loginEnabled        = $this->settings->loginEnabled();
+		$pathsEnabled        = $this->settings->pathsEnabled() && Marker::isEnabled();
+		$pathsCurrent        = $pathsEnabled && $this->settings->pathStateMatches( $this->settings->configurationHash() );
+		$aliasesSupported    = $this->mapper->supportsVerifiedAliases();
+		$hasRequestedAliases = $this->settings->hasRequestedPathAliases();
+		$loginUrl            = $this->mapper->rewriteUrl(
 			rtrim( (string) get_option( 'siteurl', '' ), '/' ) . '/wp-login.php',
 			false,
 			true
@@ -91,6 +93,7 @@ final readonly class AdminPage {
 		$loginStatus = $loginEnabled
 			? __( 'Enabled and verified', 'hide-wp' )
 			: ( $loginRequested ? __( 'Pending verification; wp-login.php remains available', 'hide-wp' ) : __( 'Disabled', 'hide-wp' ) );
+		$pathStatus  = $this->pathStatusLabel( $pathsEnabled, $pathsCurrent );
 		?>
 		<div class="wrap hide-wp-wrap">
 			<h1><?php echo esc_html__( 'Hide WP Surface', 'hide-wp' ); ?></h1>
@@ -146,38 +149,40 @@ final readonly class AdminPage {
 
 				<h2><?php echo esc_html__( 'Verified Server Aliases', 'hide-wp' ); ?></h2>
 				<p>
-					<?php echo esc_html__( 'Save these paths, install one generated server configuration, then use Verify and Enable. The plugin never edits Nginx or Apache configuration.', 'hide-wp' ); ?>
+					<?php echo esc_html__( 'Choose which WordPress directories to alias, save the paths, install the generated server configuration, then use Verify and Enable. The plugin never edits Nginx or Apache configuration.', 'hide-wp' ); ?>
 				</p>
 				<?php if ( ! $aliasesSupported ) : ?>
 					<div class="notice notice-warning inline"><p>
 						<?php echo esc_html__( 'Server aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content on the same origin and URL directory.', 'hide-wp' ); ?>
 					</p></div>
 				<?php endif; ?>
+				<?php if ( ! $hasRequestedAliases ) : ?>
+					<div class="notice notice-warning inline"><p>
+						<?php echo esc_html__( 'Select at least one server alias before running verification. Use Disable Path Aliases to turn all verified aliases off.', 'hide-wp' ); ?>
+					</p></div>
+				<?php endif; ?>
 				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row"><label for="hide-wp-admin-slug"><?php echo esc_html__( 'Admin path', 'hide-wp' ); ?></label></th>
-						<td><?php $this->pathInput( 'admin_slug', (string) $options['admin_slug'], 'hide-wp-admin-slug' ); ?></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="hide-wp-content-slug"><?php echo esc_html__( 'Content path', 'hide-wp' ); ?></label></th>
-						<td><?php $this->pathInput( 'content_slug', (string) $options['content_slug'], 'hide-wp-content-slug' ); ?></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="hide-wp-includes-slug"><?php echo esc_html__( 'Includes path', 'hide-wp' ); ?></label></th>
-						<td><?php $this->pathInput( 'includes_slug', (string) $options['includes_slug'], 'hide-wp-includes-slug' ); ?></td>
-					</tr>
+					<?php
+					$this->aliasRow( 'admin', __( 'Admin path', 'hide-wp' ), __( 'Alias wp-admin', 'hide-wp' ), (bool) $options['admin_enabled'], (string) $options['admin_slug'], 'hide-wp-admin-slug' );
+					$this->aliasRow( 'content', __( 'Content path', 'hide-wp' ), __( 'Alias wp-content', 'hide-wp' ), (bool) $options['content_enabled'], (string) $options['content_slug'], 'hide-wp-content-slug' );
+					$this->aliasRow( 'includes', __( 'Includes path', 'hide-wp' ), __( 'Alias wp-includes', 'hide-wp' ), (bool) $options['includes_enabled'], (string) $options['includes_slug'], 'hide-wp-includes-slug' );
+					?>
 					<tr>
 						<th scope="row"><?php echo esc_html__( 'Status', 'hide-wp' ); ?></th>
 						<td>
 							<strong class="<?php echo $pathsEnabled ? 'hide-wp-ok' : 'hide-wp-off'; ?>">
-								<?php
-								echo esc_html(
-									$pathsEnabled
-										? __( 'Enabled and verified', 'hide-wp' )
-										: __( 'Disabled', 'hide-wp' )
-								);
-								?>
+								<?php echo esc_html( $pathStatus ); ?>
 							</strong>
+							<?php if ( $pathsEnabled ) : ?>
+								<p class="description">
+									<?php echo esc_html( $this->activeAliasesDescription() ); ?>
+								</p>
+							<?php endif; ?>
+							<?php if ( $pathsEnabled && ! $pathsCurrent ) : ?>
+								<p class="description">
+									<?php echo esc_html__( 'Saved settings are pending verification; the previous verified alias set remains active for live requests.', 'hide-wp' ); ?>
+								</p>
+							<?php endif; ?>
 							<?php if ( is_multisite() ) : ?>
 								<p class="description"><?php echo esc_html__( 'Server aliases are intentionally unavailable on multisite.', 'hide-wp' ); ?></p>
 							<?php endif; ?>
@@ -210,7 +215,7 @@ final readonly class AdminPage {
 			<textarea class="large-text code hide-wp-config" rows="18" readonly><?php echo esc_textarea( $this->serverConfig->nginx() ); ?></textarea>
 
 			<p>
-				<button type="button" class="button button-primary" id="hide-wp-verify" <?php disabled( is_multisite() || ! $aliasesSupported || Marker::isRecoveryRequested() ); ?>>
+				<button type="button" class="button button-primary" id="hide-wp-verify" <?php disabled( is_multisite() || ! $aliasesSupported || Marker::isRecoveryRequested() || ! $hasRequestedAliases ); ?>>
 					<?php echo esc_html__( 'Verify and Enable', 'hide-wp' ); ?>
 				</button>
 				<button type="button" class="button" id="hide-wp-disable">
@@ -270,7 +275,7 @@ final readonly class AdminPage {
 
 		wp_send_json_success(
 			array(
-				'message'  => __( 'All alias and blocking checks passed. Path aliases are enabled.', 'hide-wp' ),
+				'message'  => __( 'Selected alias and blocking checks passed. Path aliases are enabled.', 'hide-wp' ),
 				'redirect' => $this->settingsUrl(),
 			)
 		);
@@ -297,6 +302,21 @@ final readonly class AdminPage {
 
 	private function settingsUrl(): string {
 		return esc_url_raw( add_query_arg( 'page', self::PAGE, admin_url( 'options-general.php' ) ) );
+	}
+
+	private function aliasRow( string $type, string $label, string $checkboxLabel, bool $checked, string $value, string $id ): void {
+		?>
+		<tr>
+			<th scope="row"><label for="<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $label ); ?></label></th>
+			<td>
+				<label>
+					<input type="checkbox" name="<?php echo esc_attr( Settings::OPTION . '[' . $type . '_enabled]' ); ?>" value="1" <?php checked( true, $checked ); ?> <?php disabled( is_multisite() ); ?>>
+					<?php echo esc_html( $checkboxLabel ); ?>
+				</label>
+				<p><?php $this->pathInput( $type . '_slug', $value, $id ); ?></p>
+			</td>
+		</tr>
+		<?php
 	}
 
 	private function pathInput( string $name, string $value, string $id ): void {
@@ -327,5 +347,34 @@ final readonly class AdminPage {
 			</td>
 		</tr>
 		<?php
+	}
+
+	private function pathStatusLabel( bool $pathsEnabled, bool $pathsCurrent ): string {
+		if ( ! $pathsEnabled ) {
+			return __( 'Disabled', 'hide-wp' );
+		}
+
+		return $pathsCurrent
+			? __( 'Enabled and verified', 'hide-wp' )
+			: __( 'Enabled with previous verified paths', 'hide-wp' );
+	}
+
+	private function activeAliasesDescription(): string {
+		$labels = array_map( array( $this, 'aliasLabel' ), $this->settings->activeAliasTypes() );
+
+		return sprintf(
+			/* translators: %s: comma-separated enabled aliases. */
+			__( 'Active aliases: %s.', 'hide-wp' ),
+			array() === $labels ? __( 'none', 'hide-wp' ) : implode( ', ', $labels )
+		);
+	}
+
+	private function aliasLabel( string $type ): string {
+		return match ( $type ) {
+			'admin'    => 'wp-admin',
+			'content'  => 'wp-content',
+			'includes' => 'wp-includes',
+			default    => $type,
+		};
 	}
 }

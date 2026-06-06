@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.1
+Stable tag: 0.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -14,7 +14,7 @@ Hides the WordPress login route and exposes verified aliases for common WordPres
 Hide WP Surface reduces common WordPress fingerprints and automated requests:
 
 * Replaces wp-login.php with a configurable login path.
-* Exposes verified aliases for wp-admin, wp-content, and wp-includes.
+* Exposes independently selectable verified aliases for wp-admin, wp-content, and wp-includes.
 * Sends original server paths to the active theme's 404 template only after loopback verification succeeds.
 * Sends nonessential readme, license, and sample configuration disclosure files to the theme 404 while aliases are active.
 * Rewrites core, plugin, theme, media, responsive image, redirect, and HTML attribute URLs.
@@ -70,6 +70,18 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.2 =
+* Added independent enable/disable controls for wp-admin, wp-content, and wp-includes server aliases.
+* Added per-alias server configuration generation, so Apache and Nginx rules are generated only for the selected aliases.
+* Added per-alias verification checks for selected server aliases.
+* Added status messaging to distinguish current verified paths from newly saved paths that still require verification.
+* Fixed an issue where saving path settings immediately disabled existing verified rewrite rules, causing aliased admin URLs to return 404 before the new server configuration was verified.
+* Fixed live routing so the previously verified alias set remains active until the newly saved alias configuration passes verification.
+* Fixed original path blocking so only enabled and verified aliases are blocked.
+* Fixed auth cookie path handling to use the active verified admin alias instead of an unverified saved admin path.
+* Improved verification failure handling by restoring the previous path alias marker when possible.
+* Improved backwards compatibility for existing installations by migrating legacy verified path state to the new per-alias state model.
 
 = 0.1.1 =
 

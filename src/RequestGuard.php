@@ -143,7 +143,7 @@ final readonly class RequestGuard {
 	}
 
 	private function isProtectedOriginalPath( string $path ): bool {
-		foreach ( array( 'admin', 'content', 'includes' ) as $type ) {
+		foreach ( $this->settings->activeAliasTypes() as $type ) {
 			if ( $this->hasPathPrefix( $path, $this->mapper->sourcePath( $type ) ) ) {
 				return true;
 			}

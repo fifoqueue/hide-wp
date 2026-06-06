@@ -140,8 +140,12 @@ final readonly class ServerVerifier {
 			);
 		}
 
+		if ( ! $this->settings->hasRequestedPathAliases() ) {
+			return new WP_Error( 'no_aliases', __( 'Select at least one server alias before verification.', 'hide-wp' ) );
+		}
+
 		if ( ! $this->settings->aliasesAreUnique() ) {
-			return new WP_Error( 'duplicate_paths', __( 'Every server alias path must be unique.', 'hide-wp' ) );
+			return new WP_Error( 'duplicate_paths', __( 'Every enabled server alias path must be unique.', 'hide-wp' ) );
 		}
 
 		$collision = $this->settings->findAliasCollision();
@@ -157,6 +161,7 @@ final readonly class ServerVerifier {
 		}
 
 		$configurationHash = $this->settings->configurationHash();
+		$hadActiveMarker   = Marker::isEnabled() && $this->settings->pathsEnabled();
 
 		if ( $this->settings->loginRequested() && ! $this->settings->loginEnabled() ) {
 			$loginResult = $this->verifyLoginRouteUnlocked();
@@ -176,6 +181,7 @@ final readonly class ServerVerifier {
 		}
 
 		if ( ! Marker::enableProbe() ) {
+			$this->restorePreviousMarker( $hadActiveMarker );
 			return new WP_Error(
 				'probe_marker',
 				sprintf(
@@ -188,12 +194,12 @@ final readonly class ServerVerifier {
 
 		$aliasResult = $this->verifyAliasRoutes();
 		if ( is_wp_error( $aliasResult ) ) {
-			Marker::disable();
+			$this->restorePreviousMarker( $hadActiveMarker );
 			return $aliasResult;
 		}
 
 		if ( ! hash_equals( $configurationHash, $this->settings->configurationHash() ) ) {
-			Marker::disable();
+			$this->restorePreviousMarker( $hadActiveMarker );
 			return new WP_Error(
 				'configuration_changed',
 				__( 'The path settings changed during verification. Review the generated server block and try again.', 'hide-wp' )
@@ -340,43 +346,51 @@ final readonly class ServerVerifier {
 	 * @return true|WP_Error
 	 */
 	private function verifyAliasRoutes(): true|WP_Error {
-		$contentUrl = $this->mapper->rewriteUrl( $this->rawPluginAssetUrl(), true );
-		$result     = $this->get( add_query_arg( 'hwp_probe', wp_generate_password( 8, false ), $contentUrl ), 64_000 );
+		$types = $this->settings->requestedAliasTypes();
 
-		if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
-			|| ! str_contains( wp_remote_retrieve_body( $result ), self::PROBE_MARKER ) ) {
-			return new WP_Error( 'content_alias', __( 'The wp-content alias did not return the plugin probe file.', 'hide-wp' ) );
+		if ( in_array( 'content', $types, true ) ) {
+			$contentUrl = $this->mapper->rewriteUrl( $this->rawPluginAssetUrl(), true );
+			$result     = $this->get( add_query_arg( 'hwp_probe', wp_generate_password( 8, false ), $contentUrl ), 64_000 );
+
+			if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
+				|| ! str_contains( wp_remote_retrieve_body( $result ), self::PROBE_MARKER ) ) {
+				return new WP_Error( 'content_alias', __( 'The wp-content alias did not return the plugin probe file.', 'hide-wp' ) );
+			}
 		}
 
-		$includesUrl = $this->mapper->rewriteUrl( $this->rawIncludesUrl( 'js/jquery/jquery.min.js' ), true );
-		$result      = $this->get( add_query_arg( 'hwp_probe', wp_generate_password( 8, false ), $includesUrl ), 256_000 );
-		$body        = is_wp_error( $result ) ? '' : wp_remote_retrieve_body( $result );
-		$source      = ABSPATH . WPINC . '/js/jquery/jquery.min.js';
-		$expected    = is_file( $source ) ? hash_file( 'sha256', $source ) : false;
+		if ( in_array( 'includes', $types, true ) ) {
+			$includesUrl = $this->mapper->rewriteUrl( $this->rawIncludesUrl( 'js/jquery/jquery.min.js' ), true );
+			$result      = $this->get( add_query_arg( 'hwp_probe', wp_generate_password( 8, false ), $includesUrl ), 256_000 );
+			$body        = is_wp_error( $result ) ? '' : wp_remote_retrieve_body( $result );
+			$source      = ABSPATH . WPINC . '/js/jquery/jquery.min.js';
+			$expected    = is_file( $source ) ? hash_file( 'sha256', $source ) : false;
 
-		if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
-			|| ! is_string( $expected ) || ! hash_equals( $expected, hash( 'sha256', $body ) ) ) {
-			return new WP_Error( 'includes_alias', __( 'The wp-includes alias did not return a known core asset.', 'hide-wp' ) );
+			if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
+				|| ! is_string( $expected ) || ! hash_equals( $expected, hash( 'sha256', $body ) ) ) {
+				return new WP_Error( 'includes_alias', __( 'The wp-includes alias did not return a known core asset.', 'hide-wp' ) );
+			}
 		}
 
-		$token = wp_generate_password( 40, false, false );
-		set_transient( 'hwp_probe_' . hash( 'sha256', $token ), $token, 60 );
+		if ( in_array( 'admin', $types, true ) ) {
+			$token = wp_generate_password( 40, false, false );
+			set_transient( 'hwp_probe_' . hash( 'sha256', $token ), $token, 60 );
 
-		$adminUrl = $this->mapper->rewriteUrl( $this->rawAdminUrl( 'admin-ajax.php' ), true );
-		$adminUrl = add_query_arg(
-			array(
-				'action' => self::PROBE_ACTION,
-				'token'  => $token,
-			),
-			$adminUrl
-		);
-		$result   = $this->get( $adminUrl, 32_000 );
-		$body     = is_wp_error( $result ) ? '' : wp_remote_retrieve_body( $result );
+			$adminUrl = $this->mapper->rewriteUrl( $this->rawAdminUrl( 'admin-ajax.php' ), true );
+			$adminUrl = add_query_arg(
+				array(
+					'action' => self::PROBE_ACTION,
+					'token'  => $token,
+				),
+				$adminUrl
+			);
+			$result   = $this->get( $adminUrl, 32_000 );
+			$body     = is_wp_error( $result ) ? '' : wp_remote_retrieve_body( $result );
 
-		if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
-			|| ! str_contains( $body, self::PROBE_MARKER ) ) {
-			delete_transient( 'hwp_probe_' . hash( 'sha256', $token ) );
-			return new WP_Error( 'admin_alias', __( 'The wp-admin alias did not execute admin-ajax.php.', 'hide-wp' ) );
+			if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
+				|| ! str_contains( $body, self::PROBE_MARKER ) ) {
+				delete_transient( 'hwp_probe_' . hash( 'sha256', $token ) );
+				return new WP_Error( 'admin_alias', __( 'The wp-admin alias did not execute admin-ajax.php.', 'hide-wp' ) );
+			}
 		}
 
 		return true;
@@ -386,27 +400,26 @@ final readonly class ServerVerifier {
 	 * @return true|WP_Error
 	 */
 	private function verifyOriginalPathsBlocked(): true|WP_Error {
-		$urls = array(
-			$this->rawPluginAssetUrl(),
-			$this->rawIncludesUrl( 'js/jquery/jquery.min.js' ),
-		);
+		$types = $this->settings->requestedAliasTypes();
+		$urls  = array();
+		if ( in_array( 'content', $types, true ) ) {
+			$urls[] = $this->rawPluginAssetUrl();
+		}
+		if ( in_array( 'includes', $types, true ) ) {
+			$urls[] = $this->rawIncludesUrl( 'js/jquery/jquery.min.js' );
+		}
+		if ( in_array( 'admin', $types, true ) ) {
+			$urls[] = $this->rawAdminUrl( 'admin-ajax.php' );
+		}
 
 		foreach ( $urls as $url ) {
 			$result = $this->verifyThemeNotFound( $url );
 			if ( is_wp_error( $result ) ) {
 				return new WP_Error(
 					'original_paths',
-					__( 'An original static WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp' )
+					__( 'An enabled original WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp' )
 				);
 			}
-		}
-
-		$result = $this->verifyThemeNotFound( $this->rawAdminUrl( 'admin-ajax.php' ) );
-		if ( is_wp_error( $result ) ) {
-			return new WP_Error(
-				'admin_block',
-				__( 'The original wp-admin path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp' )
-			);
 		}
 
 		return true;
@@ -432,6 +445,13 @@ final readonly class ServerVerifier {
 		}
 
 		return true;
+	}
+
+	private function restorePreviousMarker( bool $hadActiveMarker ): void {
+		Marker::disableProbe();
+		if ( $hadActiveMarker ) {
+			Marker::enable();
+		}
 	}
 
 	/**

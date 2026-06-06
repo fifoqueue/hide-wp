@@ -38,10 +38,11 @@ final readonly class PathMapper {
 			$path = $this->replacePrefix( $path, $this->sourcePath( 'login' ), $this->targetPath( 'login' ) );
 		}
 
-		if ( $forcePaths || $this->settings->pathsEnabled() ) {
-			foreach ( array( 'admin', 'content', 'includes' ) as $type ) {
-				$path = $this->replacePrefix( $path, $this->sourcePath( $type ), $this->targetPath( $type ) );
-			}
+		$types = $forcePaths
+			? $this->requestedAliasTypes()
+			: $this->activeAliasTypes();
+		foreach ( $types as $type ) {
+			$path = $this->replacePrefix( $path, $this->sourcePath( $type ), $this->targetPath( $type, ! $forcePaths ) );
 		}
 
 		return $path;
@@ -54,7 +55,7 @@ final readonly class PathMapper {
 
 		return (string) preg_replace_callback(
 			'~(?:https?:)?//[^\s"\'(),]+|/[^\s"\'(),]+~i',
-			fn ( array $match ): string => $this->rewriteUrl( $match[0], true ),
+			fn ( array $match ): string => $this->rewriteUrl( $match[0] ),
 			$value
 		);
 	}
@@ -71,18 +72,32 @@ final readonly class PathMapper {
 		};
 	}
 
-	public function targetPath( string $type ): string {
+	public function targetPath( string $type, bool $active = false ): string {
 		$source = $this->sourcePath( $type );
 		$parent = $this->parentPath( $source );
 		$slug   = match ( $type ) {
 			'login'    => $this->settings->getSlug( 'login_slug' ),
-			'admin'    => $this->settings->getSlug( 'admin_slug' ),
-			'content'  => $this->settings->getSlug( 'content_slug' ),
-			'includes' => $this->settings->getSlug( 'includes_slug' ),
+			'admin'    => $active ? $this->settings->getActiveSlug( 'admin' ) : $this->settings->getSlug( 'admin_slug' ),
+			'content'  => $active ? $this->settings->getActiveSlug( 'content' ) : $this->settings->getSlug( 'content_slug' ),
+			'includes' => $active ? $this->settings->getActiveSlug( 'includes' ) : $this->settings->getSlug( 'includes_slug' ),
 			default    => '',
 		};
 
 		return $this->joinPath( $parent, $slug );
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public function requestedAliasTypes(): array {
+		return $this->settings->requestedAliasTypes();
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public function activeAliasTypes(): array {
+		return $this->settings->activeAliasTypes();
 	}
 
 	public function rawContentUrl(): string {

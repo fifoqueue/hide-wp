@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Hide WP Surface
  * Description: Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases.
- * Version:     0.1.1
+ * Version:     0.1.2
  * Requires at least: 7.0
  * Requires PHP: 8.3
  * Author:      fifoqueue
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'HIDE_WP_VERSION', '0.1.1' );
+define( 'HIDE_WP_VERSION', '0.1.2' );
 define( 'HIDE_WP_FILE', __FILE__ );
 define( 'HIDE_WP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'HIDE_WP_URL', plugin_dir_url( __FILE__ ) );

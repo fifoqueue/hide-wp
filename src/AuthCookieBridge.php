@@ -50,7 +50,7 @@ final class AuthCookieBridge {
 	): bool {
 		unset( $token );
 
-		if ( ! $send || ! $this->settings->pathsEnabled() || headers_sent() ) {
+		if ( ! $send || ! $this->settings->activeAliasEnabled( 'admin' ) || headers_sent() ) {
 			$this->pendingCookie = null;
 			return $send;
 		}
@@ -79,7 +79,7 @@ final class AuthCookieBridge {
 	}
 
 	public function mirrorCurrentAuthCookie(): bool {
-		if ( ! $this->settings->pathsEnabled() || headers_sent() ) {
+		if ( ! $this->settings->activeAliasEnabled( 'admin' ) || headers_sent() ) {
 			return false;
 		}
 
@@ -117,7 +117,7 @@ final class AuthCookieBridge {
 			$value,
 			array(
 				'expires'  => $expire,
-				'path'     => $this->mapper->targetPath( 'admin' ),
+				'path'     => $this->mapper->targetPath( 'admin', true ),
 				'domain'   => (string) COOKIE_DOMAIN,
 				'secure'   => $secure,
 				'httponly' => true,
