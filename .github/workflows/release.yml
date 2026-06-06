@@ -29,7 +29,7 @@ jobs:
         with:
           php-version: '8.3'
           coverage: none
-          tools: composer
+          tools: composer, wp-cli:2.12.0
 
       - name: Validate version metadata
         id: metadata
@@ -71,6 +71,32 @@ jobs:
             composer validate --no-check-publish
             composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
           fi
+
+      - name: Validate translations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p build/i18n
+          wp i18n make-pot . build/i18n/hide-wp-surface.pot \
+            --domain=hide-wp-surface \
+            --exclude=.github,.idea,.tools,build,dist,lib,runtime,vendor \
+            --headers='{"Report-Msgid-Bugs-To":"https://github.com/fifoqueue/hide-wp-surface/issues","POT-Creation-Date":""}'
+          cmp languages/hide-wp-surface.pot build/i18n/hide-wp-surface.pot
+
+          cp languages/hide-wp-surface-ko_KR.po build/i18n/hide-wp-surface-ko_KR.po
+          wp i18n update-po \
+            build/i18n/hide-wp-surface.pot \
+            build/i18n/hide-wp-surface-ko_KR.po
+          cmp languages/hide-wp-surface-ko_KR.po build/i18n/hide-wp-surface-ko_KR.po
+
+          wp i18n make-mo \
+            languages/hide-wp-surface-ko_KR.po \
+            languages/hide-wp-surface-ko_KR.mo
+
+          wp i18n make-php \
+            languages/hide-wp-surface-ko_KR.po \
+            languages
 
       - name: Lint PHP files
         shell: bash

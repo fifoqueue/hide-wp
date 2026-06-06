@@ -1,0 +1,534 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Hide WP Surface 0.1.23\n"
+"Report-Msgid-Bugs-To: https://github.com/fifoqueue/hide-wp-surface/issues\n"
+"Last-Translator: fifoqueue\n"
+"Language-Team: Korean\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: 2026-06-07 04:00+0900\n"
+"Language: ko_KR\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: hide-wp-surface\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#. Plugin Name of the plugin
+#: hide-wp.php
+#: src/AdminPage.php:34
+#: src/AdminPage.php:35
+#: src/AdminPage.php:120
+msgid "Hide WP Surface"
+msgstr "Hide WP Surface"
+
+#. Plugin URI of the plugin
+#: hide-wp.php
+msgid "https://github.com/fifoqueue/hide-wp-surface"
+msgstr "https://github.com/fifoqueue/hide-wp-surface"
+
+#. Description of the plugin
+#: hide-wp.php
+msgid "Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases."
+msgstr "검증된 서버 측 별칭을 사용하여 노출되는 WordPress 경로와 제거 가능한 HTML 식별 정보를 줄입니다."
+
+#. Author of the plugin
+#: hide-wp.php
+msgid "fifoqueue"
+msgstr "fifoqueue"
+
+#: hide-wp.php:70
+msgid "Hide WP Surface requires WordPress 7.0 or later and PHP 8.3 or later."
+msgstr "Hide WP Surface를 사용하려면 WordPress 7.0 이상과 PHP 8.3 이상이 필요합니다."
+
+#: src/AdminPage.php:52
+msgid "Settings"
+msgstr "설정"
+
+#: src/AdminPage.php:90
+msgid "Checking server routes..."
+msgstr "서버 경로 확인 중..."
+
+#: src/AdminPage.php:91
+msgid "The request failed."
+msgstr "요청에 실패했습니다."
+
+#: src/AdminPage.php:98
+msgid "You are not allowed to manage these settings."
+msgstr "이 설정을 관리할 권한이 없습니다."
+
+#: src/AdminPage.php:115
+#: src/AdminPage.php:494
+msgid "Enabled and verified"
+msgstr "활성화 및 검증 완료"
+
+#: src/AdminPage.php:116
+msgid "Pending verification; wp-login.php remains available"
+msgstr "검증 대기 중; wp-login.php는 계속 사용할 수 있습니다"
+
+#: src/AdminPage.php:116
+#: src/AdminPage.php:490
+msgid "Disabled"
+msgstr "비활성화"
+
+#: src/AdminPage.php:122
+msgid "Path hiding reduces automated scanning noise. It does not replace updates, strong authentication, 2FA, rate limiting, or a WAF."
+msgstr "경로 숨김은 자동 스캔으로 인한 불필요한 요청을 줄여 줍니다. 업데이트, 강력한 인증, 2단계 인증, 속도 제한 또는 WAF를 대체하지는 않습니다."
+
+#: src/AdminPage.php:129
+msgid "Emergency recovery mode is active. Path verification remains disabled until the recovery constant and recovery file are removed."
+msgstr "긴급 복구 모드가 활성화되어 있습니다. 복구 상수와 복구 파일을 제거할 때까지 경로 검증은 비활성화됩니다."
+
+#: src/AdminPage.php:152
+msgid "Login Path"
+msgstr "로그인 경로"
+
+#: src/AdminPage.php:155
+msgid "Custom login"
+msgstr "사용자 지정 로그인"
+
+#: src/AdminPage.php:159
+msgid "Hide direct wp-login.php requests"
+msgstr "wp-login.php 직접 요청 숨기기"
+
+#: src/AdminPage.php:162
+msgid "Custom login and server paths are unavailable on multisite."
+msgstr "멀티사이트에서는 사용자 지정 로그인과 서버 경로를 사용할 수 없습니다."
+
+#: src/AdminPage.php:167
+msgid "Login path"
+msgstr "로그인 경로"
+
+#: src/AdminPage.php:171
+msgid "Login status"
+msgstr "로그인 상태"
+
+#: src/AdminPage.php:180
+msgid "Verify Login Path"
+msgstr "로그인 경로 검증"
+
+#: src/AdminPage.php:187
+msgid "Verified Server Aliases"
+msgstr "검증된 서버 별칭"
+
+#: src/AdminPage.php:189
+msgid "Choose which WordPress directories to alias, save the paths, install the generated server configuration, then use Verify and Enable. The plugin never edits Nginx or Apache configuration."
+msgstr "별칭을 사용할 WordPress 디렉터리를 선택하고 경로를 저장한 다음, 생성된 서버 설정을 설치하고 검증 후 활성화를 실행하세요. 이 플러그인은 Nginx 또는 Apache 설정을 직접 수정하지 않습니다."
+
+#: src/AdminPage.php:193
+msgid "Server aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content on the same origin and URL directory."
+msgstr "서버 별칭을 사용하려면 HTTPS가 필요하며 WordPress URL 디렉터리는 ASCII 문자만 포함해야 합니다. 또한 wp-content는 같은 출처와 URL 디렉터리에 있어야 합니다."
+
+#: src/AdminPage.php:198
+msgid "Select at least one server alias before running verification. Use Disable Path Aliases to turn all verified aliases off."
+msgstr "검증을 실행하기 전에 서버 별칭을 하나 이상 선택하세요. 검증된 모든 별칭을 끄려면 경로 별칭 비활성화를 사용하세요."
+
+#: src/AdminPage.php:203
+msgid "Admin path"
+msgstr "관리자 경로"
+
+#: src/AdminPage.php:203
+msgid "Alias wp-admin"
+msgstr "wp-admin 별칭 사용"
+
+#: src/AdminPage.php:204
+msgid "Content path"
+msgstr "콘텐츠 경로"
+
+#: src/AdminPage.php:204
+msgid "Alias wp-content"
+msgstr "wp-content 별칭 사용"
+
+#: src/AdminPage.php:205
+msgid "Includes path"
+msgstr "인클루드 경로"
+
+#: src/AdminPage.php:205
+msgid "Alias wp-includes"
+msgstr "wp-includes 별칭 사용"
+
+#: src/AdminPage.php:208
+msgid "Status"
+msgstr "상태"
+
+#: src/AdminPage.php:220
+msgid "Saved settings are pending verification; the previous verified alias set remains active for live requests."
+msgstr "저장된 설정이 검증 대기 중입니다. 실제 요청에는 이전에 검증된 별칭 구성이 계속 적용됩니다."
+
+#: src/AdminPage.php:224
+msgid "Server aliases are intentionally unavailable on multisite."
+msgstr "멀티사이트에서는 서버 별칭을 의도적으로 사용할 수 없도록 설정되어 있습니다."
+
+#: src/AdminPage.php:232
+msgid "Nginx Integration"
+msgstr "Nginx 연동"
+
+#: src/AdminPage.php:234
+msgid "Standard rewrite mode is simpler and uses your existing PHP handler. FastCGI compatibility mode is only for Nginx stacks where standard rewrites are swallowed by the WordPress front controller."
+msgstr "표준 재작성 모드는 더 간단하며 기존 PHP 핸들러를 사용합니다. FastCGI 호환 모드는 표준 재작성이 WordPress 프런트 컨트롤러에 의해 처리되어 버리는 Nginx 환경에서만 사용하세요."
+
+#: src/AdminPage.php:238
+msgid "Admin alias mode"
+msgstr "관리자 별칭 모드"
+
+#: src/AdminPage.php:242
+msgid "Standard rewrite mode"
+msgstr "표준 재작성 모드"
+
+#: src/AdminPage.php:246
+msgid "FastCGI compatibility mode"
+msgstr "FastCGI 호환 모드"
+
+#: src/AdminPage.php:260
+msgid "Alias query key"
+msgstr "별칭 쿼리 키"
+
+#: src/AdminPage.php:263
+msgid "Used by the generated login rewrite and by Standard wp-admin rewrite mode as an internal alias flag. Use lowercase letters, numbers, and underscores."
+msgstr "생성된 로그인 재작성 규칙과 표준 wp-admin 재작성 모드에서 내부 별칭 플래그로 사용됩니다. 소문자, 숫자, 밑줄만 사용하세요."
+
+#: src/AdminPage.php:267
+msgid "Alias token"
+msgstr "별칭 토큰"
+
+#: src/AdminPage.php:272
+msgid "Rotate token on save"
+msgstr "저장할 때 토큰 교체"
+
+#: src/AdminPage.php:274
+msgid "After changing the key or rotating the token, replace the generated server block, verify the login path again, and run Verify and Enable for path aliases."
+msgstr "키를 변경하거나 토큰을 교체한 후에는 생성된 서버 블록을 바꾸고 로그인 경로를 다시 검증한 다음, 경로 별칭에 대해 검증 후 활성화를 실행하세요."
+
+#: src/AdminPage.php:278
+msgid "Nginx FastCGI pass"
+msgstr "Nginx FastCGI 전달 대상"
+
+#: src/AdminPage.php:281
+msgid "Only used by FastCGI compatibility mode. Examples: unix:/run/php/php8.5-fpm.sock, 127.0.0.1:9000, or a named upstream."
+msgstr "FastCGI 호환 모드에서만 사용됩니다. 예: unix:/run/php/php8.5-fpm.sock, 127.0.0.1:9000 또는 이름이 지정된 업스트림."
+
+#: src/AdminPage.php:335
+msgid "Automatic Updates"
+msgstr "자동 업데이트"
+
+#: src/AdminPage.php:338
+msgid "GitHub update checks"
+msgstr "GitHub 업데이트 확인"
+
+#: src/AdminPage.php:342
+msgid "Check GitHub Releases for plugin updates"
+msgstr "GitHub 릴리스에서 플러그인 업데이트 확인"
+
+#: src/AdminPage.php:347
+msgid "GitHub repository"
+msgstr "GitHub 저장소"
+
+#: src/AdminPage.php:350
+msgid "Use owner/repository. The latest GitHub Release must include a ZIP asset such as hide-wp-surface.zip."
+msgstr "owner/repository 형식을 사용하세요. 최신 GitHub 릴리스에는 hide-wp-surface.zip 같은 ZIP 파일이 포함되어야 합니다."
+
+#: src/AdminPage.php:354
+msgid "GitHub token"
+msgstr "GitHub 토큰"
+
+#: src/AdminPage.php:356
+msgid "Leave blank to keep the saved token"
+msgstr "저장된 토큰을 유지하려면 비워두세요"
+
+#: src/AdminPage.php:358
+msgid "A token is saved. Enter a new token to replace it."
+msgstr "토큰이 저장되어 있습니다. 교체하려면 새 토큰을 입력하세요."
+
+#: src/AdminPage.php:358
+msgid "No token is saved. Public GitHub API checks may be rate limited without one."
+msgstr "저장된 토큰이 없습니다. 토큰이 없으면 GitHub API 이용에 속도 제한이 적용될 수 있습니다."
+
+#: src/AdminPage.php:363
+msgid "Clear the saved token"
+msgstr "저장된 토큰 지우기"
+
+#: src/AdminPage.php:366
+msgid "For private repositories or rate-limit avoidance, use a fine-grained GitHub token with Contents: read access."
+msgstr "비공개 저장소를 사용하거나 속도 제한을 피하려면 Contents: read 권한이 있는 GitHub 토큰을 사용하세요."
+
+#: src/AdminPage.php:141
+#: src/AdminPage.php:323
+msgid "Fingerprint Cleanup"
+msgstr "식별 정보 정리"
+
+#: src/AdminPage.php:326
+msgid "Remove generator metadata"
+msgstr "generator 메타데이터 제거"
+
+#: src/AdminPage.php:327
+msgid "Remove RSD, WLW, shortlink, REST, oEmbed, and pingback discovery hints"
+msgstr "RSD, WLW, 짧은 링크, REST, oEmbed 및 핑백 탐색 정보 제거"
+
+#: src/AdminPage.php:328
+msgid "Remove only the WordPress core version from asset query strings"
+msgstr "자산 쿼리 문자열에서 WordPress 코어 버전만 제거"
+
+#: src/AdminPage.php:329
+msgid "Use a generic login error message"
+msgstr "일반화된 로그인 오류 메시지 사용"
+
+#: src/AdminPage.php:373
+msgid "Save Settings"
+msgstr "설정 저장"
+
+#: src/AdminPage.php:287
+msgid "Server Configuration"
+msgstr "서버 설정"
+
+#: src/AdminPage.php:288
+msgid "Back up the server configuration first. Replace any older Hide WP Surface block. For Apache, insert it before the standard WordPress rewrite block. For Nginx, insert it in the WordPress server block and reload Nginx."
+msgstr "먼저 서버 설정을 백업하세요. 이전 Hide WP Surface 블록이 있으면 교체하세요. Apache에서는 표준 WordPress 재작성 블록 앞에 삽입하고, Nginx에서는 WordPress 서버 블록에 삽입한 후 Nginx를 다시 로드하세요."
+
+#: src/AdminPage.php:289
+msgid "Use a security-patched web server. For upstream Nginx, use 1.30.2/1.31.1 or later because this block uses the rewrite module."
+msgstr "보안 패치가 적용된 웹 서버를 사용하세요. 이 블록은 rewrite 모듈을 사용하므로 업스트림 Nginx는 1.30.2/1.31.1 이상을 사용하세요."
+
+#: src/AdminPage.php:291
+msgid "Apache 2.4+ (.htaccess)"
+msgstr "Apache 2.4+ (.htaccess)"
+
+#: src/AdminPage.php:294
+msgid "Nginx"
+msgstr "Nginx"
+
+#: src/AdminPage.php:299
+msgid "Verify and Enable"
+msgstr "검증 후 활성화"
+
+#: src/AdminPage.php:302
+msgid "Disable Path Aliases"
+msgstr "경로 별칭 비활성화"
+
+#: src/AdminPage.php:307
+msgid "Emergency Recovery"
+msgstr "긴급 복구"
+
+#. translators: 1: wp-config.php constant, 2: recovery file path.
+#: src/AdminPage.php:313
+#, php-format
+msgid "Set %1$s in wp-config.php to disable PHP-side routing. For full Apache or Nginx recovery, create an empty file at %2$s; generated server rules cannot read the PHP constant."
+msgstr "PHP 측 라우팅을 비활성화하려면 wp-config.php에 %1$s을(를) 설정하세요. Apache 또는 Nginx까지 완전히 복구하려면 %2$s에 빈 파일을 만드세요. 생성된 서버 규칙에서는 PHP 상수를 읽을 수 없습니다."
+
+#: src/AdminPage.php:383
+#: src/AdminPage.php:402
+#: src/AdminPage.php:423
+msgid "Insufficient permissions."
+msgstr "권한이 부족합니다."
+
+#: src/AdminPage.php:393
+msgid "The login path is verified. Direct wp-login.php requests are now hidden."
+msgstr "로그인 경로가 검증되었습니다. 이제 wp-login.php 직접 요청이 숨겨집니다."
+
+#: src/AdminPage.php:414
+msgid "Selected alias and blocking checks passed. Path aliases are enabled."
+msgstr "선택한 별칭 및 차단 검사를 통과했습니다. 경로 별칭이 활성화되었습니다."
+
+#: src/AdminPage.php:433
+msgid "Path aliases are disabled and the server marker was removed."
+msgstr "경로 별칭이 비활성화되었고 서버 마커가 제거되었습니다."
+
+#: src/AdminPage.php:481
+msgid "Enabled"
+msgstr "활성화"
+
+#: src/AdminPage.php:495
+msgid "Enabled with previous verified paths"
+msgstr "이전에 검증된 경로로 활성화됨"
+
+#. translators: %s: comma-separated enabled aliases.
+#: src/AdminPage.php:503
+#, php-format
+msgid "Active aliases: %s."
+msgstr "활성 별칭: %s."
+
+#: src/AdminPage.php:504
+msgid "none"
+msgstr "없음"
+
+#: src/Plugin.php:26
+msgid "A stale server marker could not be removed. Emergency recovery mode was requested. Check filesystem permissions before activating Hide WP Surface."
+msgstr "오래된 서버 마커를 제거할 수 없어 긴급 복구 모드를 요청했습니다. Hide WP Surface를 활성화하기 전에 파일 시스템 권한을 확인하세요."
+
+#: src/Plugin.php:27
+msgid "A stale server marker could not be removed, and the emergency recovery file could not be created. Restore the original routes manually before activating Hide WP Surface."
+msgstr "오래된 서버 마커를 제거할 수 없고 긴급 복구 파일도 만들 수 없습니다. Hide WP Surface를 활성화하기 전에 원래 경로를 수동으로 복원하세요."
+
+#: src/Plugin.php:28
+#: src/Plugin.php:37
+msgid "Activation blocked"
+msgstr "활성화 차단됨"
+
+#: src/Plugin.php:36
+msgid "Hide WP Surface cannot be activated on multisite. Login and server aliases require one verified configuration per origin."
+msgstr "멀티사이트에서는 Hide WP Surface를 활성화할 수 없습니다. 로그인 및 서버 별칭에는 출처별로 하나의 검증된 설정이 필요합니다."
+
+#: src/RequestGuard.php:26
+msgid "Authentication failed."
+msgstr "인증에 실패했습니다."
+
+#. translators: %s: emergency recovery file path.
+#: src/ServerVerifier.php:93
+#, php-format
+msgid "The server marker could not be removed. An emergency recovery file was created at %s. Check filesystem permissions before removing it."
+msgstr "서버 마커를 제거할 수 없어 %s에 긴급 복구 파일을 만들었습니다. 이 파일을 제거하기 전에 파일 시스템 권한을 확인하세요."
+
+#: src/ServerVerifier.php:96
+msgid "The server marker and emergency recovery file could not be written. Restore the original routes manually and check filesystem permissions."
+msgstr "서버 마커와 긴급 복구 파일을 기록할 수 없습니다. 원래 경로를 수동으로 복원하고 파일 시스템 권한을 확인하세요."
+
+#: src/ServerVerifier.php:122
+msgid "Verified path aliases are disabled on multisite installations."
+msgstr "멀티사이트 설치에서는 검증된 경로 별칭이 비활성화됩니다."
+
+#. translators: %s: emergency recovery file path.
+#: src/ServerVerifier.php:130
+#, php-format
+msgid "Recovery mode is active. Remove the recovery constant and the file at %s before verification."
+msgstr "복구 모드가 활성화되어 있습니다. 검증하기 전에 복구 상수와 %s의 파일을 제거하세요."
+
+#: src/ServerVerifier.php:139
+msgid "Path aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content in that same origin and directory."
+msgstr "경로 별칭을 사용하려면 HTTPS가 필요하며 WordPress URL 디렉터리는 ASCII 문자만 포함해야 합니다. 또한 wp-content는 같은 출처와 디렉터리에 있어야 합니다."
+
+#: src/ServerVerifier.php:144
+msgid "Select at least one server alias before verification."
+msgstr "검증하기 전에 서버 별칭을 하나 이상 선택하세요."
+
+#: src/ServerVerifier.php:148
+msgid "Every enabled server alias path must be unique."
+msgstr "활성화된 각 서버 별칭 경로는 서로 달라야 합니다."
+
+#. translators: %s: path slug that conflicts with an existing route.
+#: src/ServerVerifier.php:157
+#: src/Settings.php:412
+#, php-format
+msgid "The path \"%s\" conflicts with existing content or a file in the WordPress directory."
+msgstr "경로 \"%s\"이(가) 기존 콘텐츠 또는 WordPress 디렉터리의 파일과 충돌합니다."
+
+#: src/ServerVerifier.php:178
+msgid "The previous server marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing."
+msgstr "이전 서버 마커를 제거할 수 없어 복구 모드를 요청했습니다. 계속하기 전에 파일 시스템 권한을 확인하세요."
+
+#: src/ServerVerifier.php:179
+msgid "The previous server marker and emergency recovery file could not be written. Restore the original routes manually before continuing."
+msgstr "이전 서버 마커와 긴급 복구 파일을 기록할 수 없습니다. 계속하기 전에 원래 경로를 수동으로 복원하세요."
+
+#. translators: %s: marker file path.
+#: src/ServerVerifier.php:189
+#, php-format
+msgid "Could not create the server verification marker at %s."
+msgstr "%s에 서버 검증 마커를 만들 수 없습니다."
+
+#: src/ServerVerifier.php:205
+#: src/ServerVerifier.php:222
+msgid "The path settings changed during verification. Review the generated server block and try again."
+msgstr "검증 중에 경로 설정이 변경되었습니다. 생성된 서버 블록을 검토하고 다시 시도하세요."
+
+#: src/ServerVerifier.php:213
+msgid "The verified path state could not be saved. Check database write access for the hide_wp_path_state option."
+msgstr "검증된 경로 상태를 저장할 수 없습니다. hide_wp_path_state 옵션에 대한 데이터베이스 쓰기 권한을 확인하세요."
+
+#. translators: %s: marker file path.
+#: src/ServerVerifier.php:232
+#, php-format
+msgid "Could not create the server activation marker at %s."
+msgstr "%s에 서버 활성화 마커를 만들 수 없습니다."
+
+#: src/ServerVerifier.php:254
+msgid "Enable and save the custom login path first."
+msgstr "먼저 사용자 지정 로그인 경로를 활성화하고 저장하세요."
+
+#: src/ServerVerifier.php:259
+msgid "Login path verification requires an HTTPS WordPress URL."
+msgstr "로그인 경로를 검증하려면 WordPress URL에 HTTPS를 사용해야 합니다."
+
+#: src/ServerVerifier.php:278
+msgid "The custom login path did not reach wp-login.php through the generated alias rewrite. Replace the generated server block and reload the web server."
+msgstr "사용자 지정 로그인 경로가 생성된 별칭 재작성 규칙을 통해 wp-login.php에 도달하지 못했습니다. 생성된 서버 블록을 교체하고 웹 서버를 다시 로드하세요."
+
+#: src/ServerVerifier.php:283
+msgid "The verified login path could not be saved."
+msgstr "검증된 로그인 경로를 저장할 수 없습니다."
+
+#: src/ServerVerifier.php:315
+msgid "Another path operation is already running. Wait a moment and try again."
+msgstr "다른 경로 작업이 이미 실행 중입니다. 잠시 기다린 후 다시 시도하세요."
+
+#: src/ServerVerifier.php:357
+msgid "The wp-content alias did not return the plugin probe file."
+msgstr "wp-content 별칭이 플러그인 검사 파일을 반환하지 않았습니다."
+
+#: src/ServerVerifier.php:370
+msgid "The wp-includes alias did not return a known core asset."
+msgstr "wp-includes 별칭이 알려진 코어 에셋을 반환하지 않았습니다."
+
+#. translators: 1: checked URL, 2: HTTP status or transport error, 3: short response excerpt.
+#: src/ServerVerifier.php:397
+#, php-format
+msgid "The wp-admin alias did not execute admin-ajax.php. Checked %1$s. Result: %2$s. Response: %3$s"
+msgstr "wp-admin 별칭이 admin-ajax.php를 실행하지 않았습니다. 확인한 URL: %1$s. 결과: %2$s. 응답: %3$s"
+
+#: src/ServerVerifier.php:430
+msgid "An enabled original WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server."
+msgstr "활성화된 원본 WordPress 경로가 테마의 404 처리기에 도달하지 않았습니다. 이전에 생성한 서버 블록을 교체하고 웹 서버를 다시 로드하세요."
+
+#: src/ServerVerifier.php:454
+msgid "The request did not reach the verified WordPress theme 404 handler."
+msgstr "요청이 검증된 WordPress 테마의 404 처리기에 도달하지 않았습니다."
+
+#: src/ServerVerifier.php:475
+msgid "No HTTP status"
+msgstr "HTTP 상태 없음"
+
+#. translators: %s: invalid path slug.
+#: src/Settings.php:280
+#, php-format
+msgid "The path \"%s\" is invalid or reserved. Use 1-63 lowercase ASCII letters, numbers, or hyphens."
+msgstr "경로 \"%s\"이(가) 잘못되었거나 예약되어 있습니다. 1~63자의 소문자 ASCII 문자, 숫자 또는 하이픈을 사용하세요."
+
+#: src/Settings.php:327
+msgid "The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name."
+msgstr "Nginx FastCGI 전달 대상 값이 잘못되었습니다. unix:/run/php/php8.3-fpm.sock 같은 Unix 소켓, host:port 또는 업스트림 이름을 사용하세요."
+
+#: src/Settings.php:341
+msgid "The Nginx alias query key must use 3-32 lowercase letters, numbers, or underscores."
+msgstr "Nginx 별칭 쿼리 키는 3~32자의 소문자, 숫자 또는 밑줄만 사용해야 합니다."
+
+#: src/Settings.php:361
+msgid "The GitHub repository must use owner/repository format."
+msgstr "GitHub 저장소는 owner/repository 형식을 사용해야 합니다."
+
+#: src/Settings.php:431
+msgid "Every enabled custom path must be unique."
+msgstr "활성화된 모든 사용자 지정 경로는 서로 달라야 합니다."
+
+#: src/Settings.php:461
+msgid "Path settings were saved. Previously verified aliases remain active until you replace the generated server block and run Verify and Enable."
+msgstr "경로 설정이 저장되었습니다. 생성된 서버 블록을 교체하고 검증 후 활성화를 실행할 때까지 이전에 검증된 별칭이 계속 활성 상태로 유지됩니다."
+
+#. translators: %s: current wp-admin alias path to admin-ajax.php.
+#: src/AdminPage.php:252
+#, php-format
+msgid "Use Standard first. Switch to FastCGI only if %s or admin assets still fall into the theme 404 handler."
+msgstr "먼저 표준 모드를 사용하세요. %s 또는 관리자 자산이 계속 테마의 404 처리기로 전달되는 경우에만 FastCGI로 전환하세요."
+
+#: src/AdminPage.php:133
+msgid "Settings sections"
+msgstr "설정 섹션"
+
+#: src/AdminPage.php:135
+msgid "Paths and Login"
+msgstr "경로 및 로그인"
+
+#: src/AdminPage.php:138
+msgid "Server Integration"
+msgstr "서버 연동"
+
+#: src/AdminPage.php:144
+msgid "Updates"
+msgstr "업데이트"

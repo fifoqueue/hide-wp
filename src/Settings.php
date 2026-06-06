@@ -277,7 +277,7 @@ final class Settings {
 					'invalid_' . $key,
 					sprintf(
 						/* translators: %s: invalid path slug. */
-						__( 'The path "%s" is invalid or reserved. Use 1-63 lowercase ASCII letters, numbers, or hyphens.', 'hide-wp' ),
+						__( 'The path "%s" is invalid or reserved. Use 1-63 lowercase ASCII letters, numbers, or hyphens.', 'hide-wp-surface' ),
 						esc_html( $proposed )
 					),
 					'error'
@@ -324,7 +324,7 @@ final class Settings {
 			add_settings_error(
 				self::OPTION,
 				'invalid_nginx_fastcgi_pass',
-				__( 'The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name.', 'hide-wp' ),
+				__( 'The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name.', 'hide-wp-surface' ),
 				'error'
 			);
 		}
@@ -338,7 +338,7 @@ final class Settings {
 			add_settings_error(
 				self::OPTION,
 				'invalid_alias_query_key',
-				__( 'The Nginx alias query key must use 3-32 lowercase letters, numbers, or underscores.', 'hide-wp' ),
+				__( 'The Nginx alias query key must use 3-32 lowercase letters, numbers, or underscores.', 'hide-wp-surface' ),
 				'error'
 			);
 		}
@@ -358,7 +358,7 @@ final class Settings {
 			add_settings_error(
 				self::OPTION,
 				'invalid_github_repository',
-				__( 'The GitHub repository must use owner/repository format.', 'hide-wp' ),
+				__( 'The GitHub repository must use owner/repository format.', 'hide-wp-surface' ),
 				'error'
 			);
 		}
@@ -409,7 +409,7 @@ final class Settings {
 				'collision_' . $key,
 				sprintf(
 					/* translators: %s: path slug that conflicts with an existing route. */
-					__( 'The path "%s" conflicts with existing content or a file in the WordPress directory.', 'hide-wp' ),
+					__( 'The path "%s" conflicts with existing content or a file in the WordPress directory.', 'hide-wp-surface' ),
 					esc_html( $slug )
 				),
 				'error'
@@ -428,7 +428,7 @@ final class Settings {
 			add_settings_error(
 				self::OPTION,
 				'duplicate_slugs',
-				__( 'Every enabled custom path must be unique.', 'hide-wp' ),
+				__( 'Every enabled custom path must be unique.', 'hide-wp-surface' ),
 				'error'
 			);
 			$loginValid = false;
@@ -458,7 +458,7 @@ final class Settings {
 			add_settings_error(
 				self::OPTION,
 				'paths_need_verification',
-				__( 'Path settings were saved. Previously verified aliases remain active until you replace the generated server block and run Verify and Enable.', 'hide-wp' ),
+				__( 'Path settings were saved. Previously verified aliases remain active until you replace the generated server block and run Verify and Enable.', 'hide-wp-surface' ),
 				'info'
 			);
 		}

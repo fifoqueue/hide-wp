@@ -90,10 +90,10 @@ final readonly class ServerVerifier {
 					$recoveryExists
 						? sprintf(
 							/* translators: %s: emergency recovery file path. */
-							__( 'The server marker could not be removed. An emergency recovery file was created at %s. Check filesystem permissions before removing it.', 'hide-wp' ),
+							__( 'The server marker could not be removed. An emergency recovery file was created at %s. Check filesystem permissions before removing it.', 'hide-wp-surface' ),
 							Marker::recoveryPath()
 						)
-						: __( 'The server marker and emergency recovery file could not be written. Restore the original routes manually and check filesystem permissions.', 'hide-wp' )
+						: __( 'The server marker and emergency recovery file could not be written. Restore the original routes manually and check filesystem permissions.', 'hide-wp-surface' )
 				);
 			}
 
@@ -119,7 +119,7 @@ final readonly class ServerVerifier {
 	 */
 	private function verifyAndEnableUnlocked(): true|WP_Error {
 		if ( is_multisite() ) {
-			return new WP_Error( 'multisite', __( 'Verified path aliases are disabled on multisite installations.', 'hide-wp' ) );
+			return new WP_Error( 'multisite', __( 'Verified path aliases are disabled on multisite installations.', 'hide-wp-surface' ) );
 		}
 
 		if ( Marker::isRecoveryRequested() ) {
@@ -127,7 +127,7 @@ final readonly class ServerVerifier {
 				'recovery_active',
 				sprintf(
 					/* translators: %s: emergency recovery file path. */
-					__( 'Recovery mode is active. Remove the recovery constant and the file at %s before verification.', 'hide-wp' ),
+					__( 'Recovery mode is active. Remove the recovery constant and the file at %s before verification.', 'hide-wp-surface' ),
 					Marker::recoveryPath()
 				)
 			);
@@ -136,16 +136,16 @@ final readonly class ServerVerifier {
 		if ( ! $this->mapper->supportsVerifiedAliases() ) {
 			return new WP_Error(
 				'origin',
-				__( 'Path aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content in that same origin and directory.', 'hide-wp' )
+				__( 'Path aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content in that same origin and directory.', 'hide-wp-surface' )
 			);
 		}
 
 		if ( ! $this->settings->hasRequestedPathAliases() ) {
-			return new WP_Error( 'no_aliases', __( 'Select at least one server alias before verification.', 'hide-wp' ) );
+			return new WP_Error( 'no_aliases', __( 'Select at least one server alias before verification.', 'hide-wp-surface' ) );
 		}
 
 		if ( ! $this->settings->aliasesAreUnique() ) {
-			return new WP_Error( 'duplicate_paths', __( 'Every enabled server alias path must be unique.', 'hide-wp' ) );
+			return new WP_Error( 'duplicate_paths', __( 'Every enabled server alias path must be unique.', 'hide-wp-surface' ) );
 		}
 
 		$collision = $this->settings->findAliasCollision();
@@ -153,8 +153,8 @@ final readonly class ServerVerifier {
 			return new WP_Error(
 				'path_collision',
 				sprintf(
-					/* translators: %s: path slug that conflicts with existing content. */
-					__( 'The path "%s" conflicts with existing content or a file in the WordPress directory.', 'hide-wp' ),
+					/* translators: %s: path slug that conflicts with an existing route. */
+					__( 'The path "%s" conflicts with existing content or a file in the WordPress directory.', 'hide-wp-surface' ),
 					$collision
 				)
 			);
@@ -175,8 +175,8 @@ final readonly class ServerVerifier {
 			return new WP_Error(
 				'marker_remove_failed',
 				$recoveryCreated
-					? __( 'The previous server marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing.', 'hide-wp' )
-					: __( 'The previous server marker and emergency recovery file could not be written. Restore the original routes manually before continuing.', 'hide-wp' )
+					? __( 'The previous server marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing.', 'hide-wp-surface' )
+					: __( 'The previous server marker and emergency recovery file could not be written. Restore the original routes manually before continuing.', 'hide-wp-surface' )
 			);
 		}
 
@@ -186,7 +186,7 @@ final readonly class ServerVerifier {
 				'probe_marker',
 				sprintf(
 					/* translators: %s: marker file path. */
-					__( 'Could not create the server verification marker at %s.', 'hide-wp' ),
+					__( 'Could not create the server verification marker at %s.', 'hide-wp-surface' ),
 					Marker::probePath()
 				)
 			);
@@ -202,7 +202,7 @@ final readonly class ServerVerifier {
 			$this->restorePreviousMarker( $hadActiveMarker );
 			return new WP_Error(
 				'configuration_changed',
-				__( 'The path settings changed during verification. Review the generated server block and try again.', 'hide-wp' )
+				__( 'The path settings changed during verification. Review the generated server block and try again.', 'hide-wp-surface' )
 			);
 		}
 
@@ -210,7 +210,7 @@ final readonly class ServerVerifier {
 			$this->disable();
 			return new WP_Error(
 				'save',
-				__( 'The verified path state could not be saved. Check database write access for the hide_wp_path_state option.', 'hide-wp' )
+				__( 'The verified path state could not be saved. Check database write access for the hide_wp_path_state option.', 'hide-wp-surface' )
 			);
 		}
 
@@ -219,7 +219,7 @@ final readonly class ServerVerifier {
 			$this->disable();
 			return new WP_Error(
 				'configuration_changed',
-				__( 'The path settings changed during verification. Review the generated server block and try again.', 'hide-wp' )
+				__( 'The path settings changed during verification. Review the generated server block and try again.', 'hide-wp-surface' )
 			);
 		}
 
@@ -229,7 +229,7 @@ final readonly class ServerVerifier {
 				'marker',
 				sprintf(
 					/* translators: %s: marker file path. */
-					__( 'Could not create the server activation marker at %s.', 'hide-wp' ),
+					__( 'Could not create the server activation marker at %s.', 'hide-wp-surface' ),
 					Marker::path()
 				)
 			);
@@ -251,12 +251,12 @@ final readonly class ServerVerifier {
 	 */
 	private function verifyLoginRouteUnlocked(): true|WP_Error {
 		if ( ! $this->settings->loginRequested() ) {
-			return new WP_Error( 'login_disabled', __( 'Enable and save the custom login path first.', 'hide-wp' ) );
+			return new WP_Error( 'login_disabled', __( 'Enable and save the custom login path first.', 'hide-wp-surface' ) );
 		}
 
 		$scheme = wp_parse_url( (string) get_option( 'siteurl', '' ), PHP_URL_SCHEME );
 		if ( ! is_string( $scheme ) || 'https' !== strtolower( $scheme ) ) {
-			return new WP_Error( 'login_https', __( 'Login path verification requires an HTTPS WordPress URL.', 'hide-wp' ) );
+			return new WP_Error( 'login_https', __( 'Login path verification requires an HTTPS WordPress URL.', 'hide-wp-surface' ) );
 		}
 
 		$configurationHash = $this->settings->loginConfigurationHash();
@@ -275,12 +275,12 @@ final readonly class ServerVerifier {
 			|| ! hash_equals( $token, $header ) ) {
 			return new WP_Error(
 				'login_route',
-				__( 'The custom login path did not reach wp-login.php through the generated alias rewrite. Replace the generated server block and reload the web server.', 'hide-wp' )
+				__( 'The custom login path did not reach wp-login.php through the generated alias rewrite. Replace the generated server block and reload the web server.', 'hide-wp-surface' )
 			);
 		}
 
 		if ( ! $this->settings->markLoginVerified( $configurationHash ) ) {
-			return new WP_Error( 'login_save', __( 'The verified login path could not be saved.', 'hide-wp' ) );
+			return new WP_Error( 'login_save', __( 'The verified login path could not be saved.', 'hide-wp-surface' ) );
 		}
 
 		return true;
@@ -312,7 +312,7 @@ final readonly class ServerVerifier {
 
 		return new WP_Error(
 			'operation_locked',
-			__( 'Another path operation is already running. Wait a moment and try again.', 'hide-wp' )
+			__( 'Another path operation is already running. Wait a moment and try again.', 'hide-wp-surface' )
 		);
 	}
 
@@ -354,7 +354,7 @@ final readonly class ServerVerifier {
 
 			if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
 				|| ! str_contains( wp_remote_retrieve_body( $result ), self::PROBE_MARKER ) ) {
-				return new WP_Error( 'content_alias', __( 'The wp-content alias did not return the plugin probe file.', 'hide-wp' ) );
+				return new WP_Error( 'content_alias', __( 'The wp-content alias did not return the plugin probe file.', 'hide-wp-surface' ) );
 			}
 		}
 
@@ -367,7 +367,7 @@ final readonly class ServerVerifier {
 
 			if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
 				|| ! is_string( $expected ) || ! hash_equals( $expected, hash( 'sha256', $body ) ) ) {
-				return new WP_Error( 'includes_alias', __( 'The wp-includes alias did not return a known core asset.', 'hide-wp' ) );
+				return new WP_Error( 'includes_alias', __( 'The wp-includes alias did not return a known core asset.', 'hide-wp-surface' ) );
 			}
 		}
 
@@ -394,7 +394,7 @@ final readonly class ServerVerifier {
 					'admin_alias',
 					sprintf(
 						/* translators: 1: checked URL, 2: HTTP status or transport error, 3: short response excerpt. */
-						__( 'The wp-admin alias did not execute admin-ajax.php. Checked %1$s. Result: %2$s. Response: %3$s', 'hide-wp' ),
+						__( 'The wp-admin alias did not execute admin-ajax.php. Checked %1$s. Result: %2$s. Response: %3$s', 'hide-wp-surface' ),
 						esc_url_raw( $adminUrl ),
 						$this->responseStatus( $result ),
 						$this->responseExcerpt( $result )
@@ -427,7 +427,7 @@ final readonly class ServerVerifier {
 			if ( is_wp_error( $result ) ) {
 				return new WP_Error(
 					'original_paths',
-					__( 'An enabled original WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp' )
+					__( 'An enabled original WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp-surface' )
 				);
 			}
 		}
@@ -451,7 +451,7 @@ final readonly class ServerVerifier {
 
 		if ( is_wp_error( $result ) || 404 !== wp_remote_retrieve_response_code( $result )
 			|| ! hash_equals( $token, $header ) ) {
-			return new WP_Error( 'theme_404', __( 'The request did not reach the verified WordPress theme 404 handler.', 'hide-wp' ) );
+			return new WP_Error( 'theme_404', __( 'The request did not reach the verified WordPress theme 404 handler.', 'hide-wp-surface' ) );
 		}
 
 		return true;
@@ -472,7 +472,7 @@ final readonly class ServerVerifier {
 
 		$code = wp_remote_retrieve_response_code( $result );
 
-		return 0 === $code ? __( 'No HTTP status', 'hide-wp' ) : (string) $code;
+		return 0 === $code ? __( 'No HTTP status', 'hide-wp-surface' ) : (string) $code;
 	}
 
 	private function responseExcerpt( array|WP_Error $result ): string {

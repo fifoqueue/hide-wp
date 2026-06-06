@@ -3,19 +3,20 @@
  * Plugin Name: Hide WP Surface
  * Plugin URI:  https://github.com/fifoqueue/hide-wp-surface
  * Description: Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases.
- * Version:     0.1.22
+ * Version:     0.1.23
  * Update URI:  https://github.com/fifoqueue/hide-wp-surface
  * Requires at least: 7.0
  * Requires PHP: 8.3
  * Author:      fifoqueue
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: hide-wp
+ * Text Domain: hide-wp-surface
+ * Domain Path: /languages
  */
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'HIDE_WP_VERSION', '0.1.22' );
+define( 'HIDE_WP_VERSION', '0.1.23' );
 define( 'HIDE_WP_BASENAME', plugin_basename( __FILE__ ) );
 if ( ! defined( 'HIDE_WP_GITHUB_REPOSITORY' ) ) {
 	define( 'HIDE_WP_GITHUB_REPOSITORY', 'fifoqueue/hide-wp-surface' );
@@ -23,6 +24,17 @@ if ( ! defined( 'HIDE_WP_GITHUB_REPOSITORY' ) ) {
 define( 'HIDE_WP_FILE', __FILE__ );
 define( 'HIDE_WP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'HIDE_WP_URL', plugin_dir_url( __FILE__ ) );
+
+add_action(
+	'init',
+	static function (): void {
+		load_plugin_textdomain(
+			'hide-wp-surface',
+			false,
+			dirname( HIDE_WP_BASENAME ) . '/languages'
+		);
+	}
+);
 
 if ( PHP_VERSION_ID < 80300 || version_compare( (string) ( $GLOBALS['wp_version'] ?? '0' ), '7.0', '<' ) ) {
 	$markerRemovalFailed = false;
@@ -55,7 +67,7 @@ if ( PHP_VERSION_ID < 80300 || version_compare( (string) ( $GLOBALS['wp_version'
 		'admin_notices',
 		static function (): void {
 			echo '<div class="notice notice-error"><p>';
-			echo esc_html__( 'Hide WP Surface requires WordPress 7.0 or later and PHP 8.3 or later.', 'hide-wp' );
+			echo esc_html__( 'Hide WP Surface requires WordPress 7.0 or later and PHP 8.3 or later.', 'hide-wp-surface' );
 			echo '</p></div>';
 		}
 	);

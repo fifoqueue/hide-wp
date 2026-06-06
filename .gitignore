@@ -472,6 +472,8 @@ composer.lock
 /.phpunit.result.cache
 /coverage/
 /build/
+/languages/*.mo
+/languages/*.l10n.php
 /runtime/paths-enabled.flag
 /runtime/paths-enabled.php
 /runtime/paths-probe.php
@@ -485,3 +487,4 @@ composer.lock
 
 ##### IntelliJ IDEA
 .idea/
+*.iml

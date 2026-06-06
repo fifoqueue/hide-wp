@@ -23,7 +23,7 @@ final class RequestGuard {
 		if ( $this->settings->getBool( 'generic_login_errors' ) ) {
 			add_filter(
 				'login_errors',
-				static fn (): string => __( 'Authentication failed.', 'hide-wp' ),
+				static fn (): string => __( 'Authentication failed.', 'hide-wp-surface' ),
 				PHP_INT_MAX
 			);
 		}

@@ -23,9 +23,9 @@ final class Plugin {
 			$recoveryCreated = Marker::requestRecovery();
 			wp_die(
 				$recoveryCreated
-					? esc_html__( 'A stale server marker could not be removed. Emergency recovery mode was requested. Check filesystem permissions before activating Hide WP Surface.', 'hide-wp' )
-					: esc_html__( 'A stale server marker could not be removed, and the emergency recovery file could not be created. Restore the original routes manually before activating Hide WP Surface.', 'hide-wp' ),
-				esc_html__( 'Activation blocked', 'hide-wp' ),
+					? esc_html__( 'A stale server marker could not be removed. Emergency recovery mode was requested. Check filesystem permissions before activating Hide WP Surface.', 'hide-wp-surface' )
+					: esc_html__( 'A stale server marker could not be removed, and the emergency recovery file could not be created. Restore the original routes manually before activating Hide WP Surface.', 'hide-wp-surface' ),
+				esc_html__( 'Activation blocked', 'hide-wp-surface' ),
 				array( 'back_link' => true )
 			);
 		}
@@ -33,8 +33,8 @@ final class Plugin {
 
 		if ( is_multisite() ) {
 			wp_die(
-				esc_html__( 'Hide WP Surface cannot be activated on multisite. Login and server aliases require one verified configuration per origin.', 'hide-wp' ),
-				esc_html__( 'Activation blocked', 'hide-wp' ),
+				esc_html__( 'Hide WP Surface cannot be activated on multisite. Login and server aliases require one verified configuration per origin.', 'hide-wp-surface' ),
+				esc_html__( 'Activation blocked', 'hide-wp-surface' ),
 				array( 'back_link' => true )
 			);
 		}

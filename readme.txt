@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.22
+Stable tag: 0.1.23
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,6 +88,14 @@ The plugin sends no telemetry and makes no external service requests. Verificati
 
 == Changelog ==
 
+= 0.1.23 =
+* Added Korean localization and standardized the plugin text domain as `hide-wp-surface`.
+* Added translation catalog validation and release-time MO/PHP language file generation to CI.
+* Split the settings page into accessible tabs for paths and login, server integration, fingerprint cleanup, and updates.
+* Preserved the active settings tab through URL hashes and keyboard navigation while keeping all settings in one save operation.
+* Replaced the hard-coded `/control/admin-ajax.php` guidance with the currently configured wp-admin alias path.
+* Stopped tracking local IntelliJ IDEA module metadata and generated translation binaries.
+
 = 0.1.22 =
 * Changed generated login alias rules to rewrite /login directly to wp-login.php with the internal alias flag, so OIDC/login plugins see the native WordPress login bootstrap instead of a late PHP include.
 * Fixed compatibility with plugins such as Authorizer that disable the native WordPress login form by avoiding the fallback login loader when the request already came through a verified alias rewrite.
@@ -137,7 +145,6 @@ The plugin sends no telemetry and makes no external service requests. Verificati
 * Added clearer Nginx placement guidance for verified server aliases.
 * Made runtime marker writes idempotent so stale marker files from a failed verification attempt can be reused safely.
 * Added explicit updater diagnostics guidance for GitHub Release checks.
-
 
 = 0.1.13 =
 * Fixed Nginx alias verification failures when the web server user could not traverse the runtime marker directory.

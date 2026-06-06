@@ -2,6 +2,48 @@
 	max-width: 1100px;
 }
 
+.hide-wp-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0;
+	margin-top: 24px;
+}
+
+.hide-wp-tabs .nav-tab {
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.hide-wp-tabs .nav-tab:focus-visible {
+	box-shadow: 0 0 0 2px #2271b1;
+	outline: 2px solid transparent;
+}
+
+.hide-wp-tab-panel {
+	padding-top: 8px;
+}
+
+.hide-wp-tab-panel[hidden] {
+	display: none;
+}
+
+.hide-wp-tab-panel > h2:first-child {
+	margin-top: 20px;
+}
+
+.hide-wp-tab-panel > hr {
+	margin: 28px 0 24px;
+}
+
+.hide-wp-save-bar {
+	border-top: 1px solid #c3c4c7;
+	margin-top: 24px;
+}
+
+.hide-wp-save-bar .submit {
+	margin-bottom: 0;
+}
+
 .hide-wp-config {
 	min-height: 280px;
 	white-space: pre;
@@ -24,4 +66,12 @@
 #hide-wp-result,
 #hide-wp-login-result {
 	margin-left: 10px;
+}
+
+@media screen and (max-width: 782px) {
+	.hide-wp-tabs .nav-tab {
+		flex: 1 1 50%;
+		margin-left: 0;
+		text-align: center;
+	}
 }
