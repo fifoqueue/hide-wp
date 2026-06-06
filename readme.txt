@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.12
+Stable tag: 0.1.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,11 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.13 =
+* Fixed Nginx alias verification failures when the web server user could not traverse the runtime marker directory.
+* Changed runtime marker directory permissions to be web-server-readable so Nginx `-f` checks can see verification and activation markers.
+* Fixed GitHub Actions release metadata stamping by avoiding shell quoting issues in the inline PHP script.
 
 = 0.1.12 =
 * Fixed admin alias fallback so it does not re-enter WordPress admin bootstrap when the web server has already routed the request to wp-admin.

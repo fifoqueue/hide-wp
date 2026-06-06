@@ -71,13 +71,13 @@ final class Marker {
 			return true;
 		}
 
-		$handle = @fopen( $path, 'x+b' );
+		$handle = @fopen( $path, 'c+b' );
 		if ( false === $handle ) {
 			return is_file( $path );
 		}
 
 		fclose( $handle );
-		@chmod( $path, 0640 );
+		@chmod( $path, 0644 );
 
 		return is_file( $path );
 	}
@@ -207,11 +207,12 @@ final class Marker {
 	private static function write( string $path, bool $createDirectory ): bool {
 		$directory = dirname( $path );
 		if ( ! is_dir( $directory ) ) {
-			if ( ! $createDirectory || ( ! @mkdir( $directory, 0750, true ) && ! is_dir( $directory ) ) ) {
+			if ( ! $createDirectory || ( ! @mkdir( $directory, 0755, true ) && ! is_dir( $directory ) ) ) {
 				return false;
 			}
 		}
 
+		@chmod( $directory, 0755 );
 		self::writeDenyFiles( $directory );
 
 		$content = "<?php\n\ndefined( 'ABSPATH' ) || exit;\n";
@@ -225,8 +226,9 @@ final class Marker {
 
 		try {
 			if ( $locked ) {
-				$bytes   = fwrite( $handle, $content );
-				$success = strlen( $content ) === $bytes && fflush( $handle );
+				$truncated = ftruncate( $handle, 0 ) && rewind( $handle );
+				$bytes     = $truncated ? fwrite( $handle, $content ) : false;
+				$success   = is_int( $bytes ) && strlen( $content ) === $bytes && fflush( $handle );
 			}
 		} finally {
 			if ( $locked ) {
@@ -240,7 +242,7 @@ final class Marker {
 			return false;
 		}
 
-		@chmod( $path, 0640 );
+		@chmod( $path, 0644 );
 		return true;
 	}
 
@@ -251,7 +253,7 @@ final class Marker {
 			if ( false !== $handle ) {
 				fwrite( $handle, "<?php\n\ndefined( 'ABSPATH' ) || exit;\n" );
 				fclose( $handle );
-				@chmod( $index, 0640 );
+				@chmod( $index, 0644 );
 			}
 		}
 
@@ -261,7 +263,7 @@ final class Marker {
 			if ( false !== $handle ) {
 				fwrite( $handle, "Deny from all\n" );
 				fclose( $handle );
-				@chmod( $htaccess, 0640 );
+				@chmod( $htaccess, 0644 );
 			}
 		}
 	}
