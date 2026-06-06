@@ -127,12 +127,12 @@ final readonly class ServerConfig {
 
 			if ( 'admin' === $alias['type'] ) {
 				$lines[] = sprintf( 'location = %s {', $target );
-				$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
-				$lines[] = sprintf( '    rewrite ^ %s/index.php$is_args$args last;', $source );
+				$lines[] = '    # Route admin aliases through WordPress so PHP, not Nginx, checks the probe/activation marker.';
+				$lines[] = sprintf( '    rewrite ^ %s?hide_wp_admin_alias=index.php&$args last;', $index );
 				$lines[] = '}';
 				$lines[] = sprintf( 'location ^~ %s {', $targetPrefix );
-				$lines[] = '    if ($hwp_aliases_enabled != 1) { return 404; }';
-				$lines[] = sprintf( '    rewrite ^%s(.+)$ %s/$1$is_args$args last;', $targetPattern . '/', $source );
+				$lines[] = '    # Keep this before generic PHP locations; /control/admin-ajax.php must reach index.php first.';
+				$lines[] = sprintf( '    rewrite ^%s(.*)$ %s?hide_wp_admin_alias=$1&$args last;', $targetPattern . '/', $index );
 				$lines[] = '}';
 				continue;
 			}

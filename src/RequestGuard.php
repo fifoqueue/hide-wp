@@ -44,12 +44,13 @@ final readonly class RequestGuard {
 			}
 		}
 
-		if ( $this->shouldServeAdminAlias( $path ) ) {
-			if ( $this->isAdminBootstrapActive() || $this->isAlreadyExecutingAdminAliasTarget( $path ) ) {
+		$adminAliasRelative = $this->serverProvidedAdminAliasRelative();
+		if ( '' !== $adminAliasRelative || $this->shouldServeAdminAlias( $path ) ) {
+			if ( '' === $adminAliasRelative && ( $this->isAdminBootstrapActive() || $this->isAlreadyExecutingAdminAliasTarget( $path ) ) ) {
 				return;
 			}
 
-			$this->serveAdminAlias( $path );
+			$this->serveAdminAlias( $path, '' === $adminAliasRelative ? null : $adminAliasRelative );
 		}
 
 		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) ) {
@@ -80,8 +81,26 @@ final readonly class RequestGuard {
 		return $this->hasPathPrefix( $path, $this->mapper->targetPath( 'admin' ) );
 	}
 
-	private function serveAdminAlias( string $path ): never {
-		$relative = $this->adminAliasRelativePath( $path );
+	private function serverProvidedAdminAliasRelative(): string {
+		if ( ! $this->settings->pathAliasRequested( 'admin' ) || ! ( Marker::isEnabled() || Marker::isProbeEnabled() ) ) {
+			return '';
+		}
+
+		$value = isset( $_GET['hide_wp_admin_alias'] ) && is_string( $_GET['hide_wp_admin_alias'] )
+			? wp_unslash( $_GET['hide_wp_admin_alias'] )
+			: '';
+
+		if ( '' === $value || str_contains( $value, "\0" ) ) {
+			return '';
+		}
+
+		$relative = ltrim( $this->normalizePath( '/' . ltrim( $value, '/' ) ), '/' );
+
+		return '' === $relative ? 'index.php' : $relative;
+	}
+
+	private function serveAdminAlias( string $path, ?string $serverProvidedRelative = null ): never {
+		$relative = null === $serverProvidedRelative ? $this->adminAliasRelativePath( $path ) : $serverProvidedRelative;
 
 		if ( ! $this->isSafeAdminRelativePath( $relative ) ) {
 			$this->serveThemeNotFound();
@@ -97,8 +116,9 @@ final readonly class RequestGuard {
 		}
 
 		$sourcePath  = $this->mapper->sourcePath( 'admin' ) . '/' . $relative;
-		$queryString = $this->currentQueryString();
+		$queryString = $this->currentQueryString( array( 'hide_wp_admin_alias' ) );
 
+		unset( $_GET['hide_wp_admin_alias'], $_REQUEST['hide_wp_admin_alias'] );
 		$_SERVER['REQUEST_URI']  = $sourcePath . ( '' === $queryString ? '' : '?' . $queryString );
 		$_SERVER['QUERY_STRING'] = $queryString;
 		$_SERVER['SCRIPT_NAME']  = $sourcePath;
@@ -174,20 +194,32 @@ final readonly class RequestGuard {
 		return true;
 	}
 
-	private function currentQueryString(): string {
+	/**
+	 * @param list<string> $removeKeys
+	 */
+	private function currentQueryString( array $removeKeys = array() ): string {
+		$parameters = wp_unslash( $_GET );
+		if ( ! is_array( $parameters ) ) {
+			return '';
+		}
+
+		foreach ( $removeKeys as $key ) {
+			unset( $parameters[ $key ] );
+		}
+
+		if ( array() !== $parameters ) {
+			return http_build_query( $parameters, '', '&', PHP_QUERY_RFC3986 );
+		}
+
 		$queryString = isset( $_SERVER['QUERY_STRING'] ) && is_string( $_SERVER['QUERY_STRING'] )
 			? $_SERVER['QUERY_STRING']
 			: '';
 
-		if ( '' !== $queryString || array() === $_GET ) {
+		if ( array() === $removeKeys ) {
 			return $queryString;
 		}
 
-		$parameters = wp_unslash( $_GET );
-
-		return is_array( $parameters )
-			? http_build_query( $parameters, '', '&', PHP_QUERY_RFC3986 )
-			: '';
+		return '';
 	}
 
 	private function maybeServeLoginProbe(): void {

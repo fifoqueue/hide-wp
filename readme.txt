@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.14
+Stable tag: 0.1.15
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,12 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.15 =
+* Changed generated Nginx wp-admin alias routing to send admin alias requests through WordPress index.php, allowing PHP to validate activation/probe markers instead of relying on Nginx file checks.
+* Fixed wp-admin alias verification on Nginx setups where /control/admin-ajax.php was intercepted by generic PHP/static handling or where Nginx could not see the runtime marker file.
+* Preserved admin alias query strings while removing the internal handoff parameter before loading wp-admin targets.
+* Fixed Update URI diagnostics by returning same-version GitHub release metadata to WordPress so successful checks appear under no_update instead of looking like the updater did not run.
 
 = 0.1.14 =
 * Reworked generated Nginx alias rules to use explicit location blocks so aliased PHP files such as admin-ajax.php are not intercepted by generic PHP locations before the alias rewrite runs.

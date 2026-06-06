@@ -71,7 +71,7 @@ final class Updater {
 			return $transient;
 		}
 
-		$update = $this->buildUpdateObject();
+		$update = $this->buildUpdateObject( true );
 		if ( null === $update ) {
 			return $transient;
 		}
@@ -101,7 +101,7 @@ final class Updater {
 			return $update;
 		}
 
-		$updateObject = $this->buildUpdateObject();
+		$updateObject = $this->buildUpdateObject( false );
 		if ( null === $updateObject ) {
 			return false;
 		}
@@ -176,7 +176,7 @@ final class Updater {
 		}
 	}
 
-	private function buildUpdateObject(): ?stdClass {
+	private function buildUpdateObject( bool $requireNewer ): ?stdClass {
 		$release = $this->latestRelease( false );
 		if ( null === $release ) {
 			return null;
@@ -184,7 +184,11 @@ final class Updater {
 
 		$version = $this->releaseVersion( $release );
 		$package = $this->packageUrl( $release );
-		if ( '' === $version || '' === $package || version_compare( $version, HIDE_WP_VERSION, '<=' ) ) {
+		if ( '' === $version || '' === $package ) {
+			return null;
+		}
+
+		if ( $requireNewer && version_compare( $version, HIDE_WP_VERSION, '<=' ) ) {
 			return null;
 		}
 
