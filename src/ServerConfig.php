@@ -174,11 +174,13 @@ final readonly class ServerConfig {
 			sprintf( '    fastcgi_pass %s;', $pass ),
 			'}',
 			'# wp-admin alias: serve admin static assets directly from wp-admin.',
-			'# Keep this before generic static locations; do not use try_files with the alias URI.',
-			sprintf( 'location ~ ^%s/(?<hwp_admin_asset>[A-Za-z0-9_./-]+)$ {', $targetPattern ),
+			'# Keep this regex location before generic static locations.',
+			'# Use rewrite ... break with an explicit root instead of alias+capture; this avoids Nginx builds/environments that fail variable alias mapping.',
+			sprintf( 'location ~ ^%s/(?!.*\.php$)(?<hwp_admin_asset>[A-Za-z0-9_./-]+)$ {', $targetPattern ),
 			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
 			'    if ($hwp_admin_asset ~ "\.\.") { return 404; }',
-			sprintf( '    alias %s/wp-admin/$hwp_admin_asset;', $root ),
+			sprintf( '    rewrite ^%s/(.*)$ /wp-admin/$1 break;', $targetPattern ),
+			sprintf( '    root %s;', $root ),
 			'}',
 		);
 
