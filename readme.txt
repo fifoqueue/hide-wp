@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.23
+Stable tag: 0.1.24
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.24 =
+* Normalized server-rewritten login aliases to the native wp-login.php request context before login rendering and OIDC plugins run.
+* Fixed Authorizer compatibility so `/login` is not mistaken for an embedded login form return URL, avoiding the redundant post-OIDC redirect back to the login page.
+* Kept OAuth2/OIDC callback query parameters intact while removing only the private alias handoff parameter.
 
 = 0.1.23 =
 * Added Korean localization and standardized the plugin text domain as `hide-wp-surface`.

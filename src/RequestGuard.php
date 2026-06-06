@@ -54,6 +54,18 @@ final class RequestGuard {
 			? wp_unslash( $_SERVER['REQUEST_URI'] )
 			: '';
 		$path = is_string( wp_parse_url( $requestUri, PHP_URL_PATH ) ) ? wp_parse_url( $requestUri, PHP_URL_PATH ) : '';
+
+		if (
+			'' !== $path
+			&& $this->settings->loginRequested()
+			&& $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) )
+		) {
+			$path                   = $this->mapper->sourcePath( 'login' );
+			$_SERVER['SCRIPT_NAME'] = $path;
+			$_SERVER['PHP_SELF']    = $path;
+			$GLOBALS['pagenow']     = 'wp-login.php';
+		}
+
 		if ( '' !== $path ) {
 			$_SERVER['REQUEST_URI'] = $path . ( '' === $queryString ? '' : '?' . $queryString );
 		}
