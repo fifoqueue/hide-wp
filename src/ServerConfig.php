@@ -94,7 +94,7 @@ final readonly class ServerConfig {
 			'# BEGIN Hide WP Surface',
 			'# Place inside the WordPress server {} block, before the generic location rules.',
 			'# Login front controller fallback.',
-			sprintf( 'rewrite ^%s/?$ %s last;', $login, $index ),
+			sprintf( 'rewrite ^%s/?$ %s$is_args$args last;', $login, $index ),
 			'',
 			'set $hwp_aliases_enabled 0;',
 			sprintf( 'if (-f "%s") { set $hwp_aliases_enabled 1; }', $marker ),
@@ -106,7 +106,7 @@ final readonly class ServerConfig {
 			'set $hwp_original_path 0;',
 			sprintf( 'if ($uri ~* "^(?:%s)(?:/|$)") { set $hwp_original_path 1; }', $sources ),
 			'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";',
-			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s last; }', $index ),
+			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s$is_args$args last; }', $index ),
 			'',
 			'# Internal aliases.',
 		);
@@ -117,10 +117,10 @@ final readonly class ServerConfig {
 
 			$lines[] = 'if ($hwp_aliases_enabled = 1) {';
 			if ( 'admin' === $alias['type'] ) {
-				$lines[] = sprintf( '    rewrite ^%1$s/?$ %2$s/index.php last;', $target, $source );
-				$lines[] = sprintf( '    rewrite ^%1$s/(.+)$ %2$s/$1 last;', $target, $source );
+				$lines[] = sprintf( '    rewrite ^%1$s/?$ %2$s/index.php$is_args$args last;', $target, $source );
+				$lines[] = sprintf( '    rewrite ^%1$s/(.+)$ %2$s/$1$is_args$args last;', $target, $source );
 			} else {
-				$lines[] = sprintf( '    rewrite ^%1$s(?:/(.*))?/?$ %2$s/$1 last;', $target, $source );
+				$lines[] = sprintf( '    rewrite ^%1$s(?:/(.*))?/?$ %2$s/$1$is_args$args last;', $target, $source );
 			}
 			$lines[] = '}';
 		}

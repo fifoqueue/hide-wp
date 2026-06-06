@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,12 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.6 =
+
+* Fixed custom login requests so the aliased login route preserves the original query string when handing the request to wp-login.php.
+* Fixed OIDC and other external login callbacks that arrive at paths such as /login?code=...&state=... by emulating the native wp-login.php request URI before loading WordPress' login controller.
+* Updated generated Nginx rewrite rules to preserve request arguments explicitly with `$is_args$args` for login, admin, asset, include, and protected original-path rewrites.
 
 = 0.1.5 =
 

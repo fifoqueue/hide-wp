@@ -50,13 +50,33 @@ final readonly class RequestGuard {
 	}
 
 	private function serveLogin(): never {
-		$sourcePath             = $this->mapper->sourcePath( 'login' );
-		$_SERVER['SCRIPT_NAME'] = $sourcePath;
-		$_SERVER['PHP_SELF']    = $sourcePath;
-		$GLOBALS['pagenow']     = 'wp-login.php';
+		$sourcePath  = $this->mapper->sourcePath( 'login' );
+		$queryString = $this->currentQueryString();
+
+		$_SERVER['REQUEST_URI']  = $sourcePath . ( '' === $queryString ? '' : '?' . $queryString );
+		$_SERVER['QUERY_STRING'] = $queryString;
+		$_SERVER['SCRIPT_NAME']  = $sourcePath;
+		$_SERVER['PHP_SELF']     = $sourcePath;
+		$GLOBALS['pagenow']      = 'wp-login.php';
 
 		require ABSPATH . 'wp-login.php';
 		exit;
+	}
+
+	private function currentQueryString(): string {
+		$queryString = isset( $_SERVER['QUERY_STRING'] ) && is_string( $_SERVER['QUERY_STRING'] )
+			? $_SERVER['QUERY_STRING']
+			: '';
+
+		if ( '' !== $queryString || array() === $_GET ) {
+			return $queryString;
+		}
+
+		$parameters = wp_unslash( $_GET );
+
+		return is_array( $parameters )
+			? http_build_query( $parameters, '', '&', PHP_QUERY_RFC3986 )
+			: '';
 	}
 
 	private function maybeServeLoginProbe(): void {
