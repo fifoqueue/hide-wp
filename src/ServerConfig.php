@@ -44,18 +44,18 @@ final readonly class ServerConfig {
 		}
 
 		$lines[] = '';
-		$lines[] = '# Block original paths only while the plugin marker exists.';
+		$lines[] = '# Send original paths to WordPress so the active theme renders its 404 template.';
 		foreach ( array_keys( $aliases ) as $source ) {
 			$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 			$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-			$lines[] = sprintf( 'RewriteRule ^%s(?:/.*)?$ - [R=404,END,NC]', preg_quote( $source, '#' ) );
+			$lines[] = sprintf( 'RewriteRule ^%s(?:/.*)?$ index.php [END,QSA,NC]', preg_quote( $source, '#' ) );
 		}
 
 		$lines[] = '';
-		$lines[] = '# Block nonessential core disclosure files.';
+		$lines[] = '# Send nonessential core disclosure files to the theme 404.';
 		$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 		$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-		$lines[] = 'RewriteRule ^(?:readme\.html|license\.txt|wp-config-sample\.php)$ - [R=404,END,NC]';
+		$lines[] = 'RewriteRule ^(?:readme\.html|license\.txt|wp-config-sample\.php)$ index.php [END,QSA,NC]';
 
 		$lines[] = '</IfModule>';
 		$lines[] = '# END Hide WP Surface';
@@ -90,7 +90,7 @@ final readonly class ServerConfig {
 			'set $hwp_original_path 0;',
 			sprintf( 'if ($uri ~* "^(?:%s)(?:/|$)") { set $hwp_original_path 1; }', $sources ),
 			'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";',
-			'if ($hwp_block_original = "11") { return 404; }',
+			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s last; }', $index ),
 			'',
 			'# Internal aliases.',
 		);

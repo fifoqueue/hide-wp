@@ -9,6 +9,7 @@ defined( 'ABSPATH' ) || exit;
 final class Settings {
 	public const OPTION = 'hide_wp_settings';
 	public const LOGIN_VERIFIED_OPTION = 'hide_wp_login_verified_hash';
+	public const PATH_STATE_OPTION = 'hide_wp_path_state';
 
 	/**
 	 * @return array<string, bool|string>
@@ -17,7 +18,6 @@ final class Settings {
 		return array(
 			'login_enabled'          => false,
 			'login_slug'             => 'login',
-			'path_aliases_enabled'   => false,
 			'admin_slug'             => 'control',
 			'content_slug'           => 'assets',
 			'includes_slug'          => 'system-assets',
@@ -25,7 +25,6 @@ final class Settings {
 			'remove_discovery_links' => true,
 			'strip_core_version'     => true,
 			'generic_login_errors'   => true,
-			'verified_hash'          => '',
 		);
 	}
 
@@ -94,8 +93,7 @@ final class Settings {
 			return false;
 		}
 
-		if ( is_multisite() || ! $this->getBool( 'path_aliases_enabled' )
-			|| ! hash_equals( $this->configurationHash(), $this->getString( 'verified_hash' ) ) ) {
+		if ( is_multisite() || ! $this->pathStateMatches( $this->configurationHash() ) ) {
 			if ( Marker::disable() || Marker::requestRecovery() ) {
 				return false;
 			}
@@ -105,6 +103,36 @@ final class Settings {
 		}
 
 		return true;
+	}
+
+	public function markPathsVerified( string $expectedHash ): bool {
+		$hash = $this->configurationHash();
+		if ( ! hash_equals( $expectedHash, $hash ) ) {
+			return false;
+		}
+
+		$state = array(
+			'enabled'       => true,
+			'verified_hash' => $hash,
+		);
+		update_option( self::PATH_STATE_OPTION, $state, false );
+
+		return $this->pathStateMatches( $hash );
+	}
+
+	public function clearPathVerification(): bool {
+		delete_option( self::PATH_STATE_OPTION );
+
+		return null === get_option( self::PATH_STATE_OPTION, null );
+	}
+
+	public function pathStateMatches( string $expectedHash ): bool {
+		$state = $this->pathState();
+		$hash  = is_string( $state['verified_hash'] ?? null ) ? $state['verified_hash'] : '';
+
+		return true === ( $state['enabled'] ?? false )
+			&& '' !== $hash
+			&& hash_equals( $expectedHash, $hash );
 	}
 
 	public function configurationHash(): string {
@@ -249,11 +277,9 @@ final class Settings {
 
 		if ( $pathsChanged || ! $pathsValid ) {
 			if ( Marker::disable() ) {
-				$result['path_aliases_enabled'] = false;
-				$result['verified_hash']        = '';
+				$this->clearPathVerification();
 			} elseif ( Marker::requestRecovery() ) {
-				$result['path_aliases_enabled'] = false;
-				$result['verified_hash']        = '';
+				$this->clearPathVerification();
 				add_settings_error(
 					self::OPTION,
 					'recovery_created',
@@ -268,8 +294,6 @@ final class Settings {
 				foreach ( array( 'admin_slug', 'content_slug', 'includes_slug' ) as $key ) {
 					$result[ $key ] = $current[ $key ];
 				}
-				$result['path_aliases_enabled'] = $current['path_aliases_enabled'];
-				$result['verified_hash']        = $current['verified_hash'];
 				add_settings_error(
 					self::OPTION,
 					'marker_remove_failed',
@@ -282,6 +306,9 @@ final class Settings {
 		if ( $loginChanged || ! $loginValid || false === $result['login_enabled'] ) {
 			delete_option( self::LOGIN_VERIFIED_OPTION );
 		}
+
+		// Remove legacy internal fields that were previously stored with user-editable settings.
+		unset( $result['path_aliases_enabled'], $result['verified_hash'] );
 
 		return $result;
 	}
@@ -381,5 +408,23 @@ final class Settings {
 		}
 
 		return false;
+	}
+
+	/**
+	 * @return array{enabled: bool, verified_hash: string}
+	 */
+	private function pathState(): array {
+		$value = get_option( self::PATH_STATE_OPTION, null );
+		if ( is_array( $value ) ) {
+			return array(
+				'enabled'       => true === ( $value['enabled'] ?? false ),
+				'verified_hash' => is_string( $value['verified_hash'] ?? null ) ? $value['verified_hash'] : '',
+			);
+		}
+
+		return array(
+			'enabled'       => false,
+			'verified_hash' => '',
+		);
 	}
 }

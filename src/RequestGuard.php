@@ -40,12 +40,12 @@ final readonly class RequestGuard {
 
 			if ( $this->settings->loginEnabled()
 				&& $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'login' ) ) ) {
-				$this->sendNotFound();
+				$this->serveThemeNotFound();
 			}
 		}
 
-		if ( $this->settings->pathsEnabled() && $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'admin' ) ) ) {
-			$this->sendNotFound();
+		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) ) {
+			$this->serveThemeNotFound();
 		}
 	}
 
@@ -74,19 +74,89 @@ final readonly class RequestGuard {
 		exit;
 	}
 
-	private function sendNotFound(): never {
+	private function serveThemeNotFound(): never {
+		if ( ! defined( 'WP_USE_THEMES' ) ) {
+			define( 'WP_USE_THEMES', true );
+		}
+
+		$this->maybeAddThemeNotFoundProbeHeader();
+
+		remove_action( 'template_redirect', 'redirect_canonical' );
+		remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
+
+		$_GET     = array();
+		$_POST    = array();
+		$_REQUEST = array();
+
+		$forceNotFound = static function ( mixed $preempt, \WP_Query $query ): bool {
+			unset( $preempt );
+			$query->set_404();
+			status_header( 404 );
+			nocache_headers();
+
+			return true;
+		};
+		add_filter( 'pre_handle_404', $forceNotFound, PHP_INT_MAX, 2 );
+
+		try {
+			wp( array( 'post__in' => array( 0 ) ) );
+		} finally {
+			remove_filter( 'pre_handle_404', $forceNotFound, PHP_INT_MAX );
+		}
+
+		global $wp_query;
+		if ( $wp_query instanceof \WP_Query ) {
+			$wp_query->posts             = array();
+			$wp_query->post              = null;
+			$wp_query->post_count        = 0;
+			$wp_query->current_post      = -1;
+			$wp_query->queried_object    = null;
+			$wp_query->queried_object_id = 0;
+			$wp_query->set_404();
+		}
+
 		status_header( 404 );
 		nocache_headers();
-		header( 'Content-Type: text/html; charset=UTF-8' );
-		header( 'X-Content-Type-Options: nosniff' );
-		header( "Content-Security-Policy: default-src 'none'; base-uri 'none'; frame-ancestors 'none'" );
-		header( 'Referrer-Policy: no-referrer' );
-		header( 'X-Frame-Options: DENY' );
+		header( 'X-Robots-Tag: noindex, nofollow', true );
 
-		$title = esc_html__( 'Not Found', 'hide-wp' );
-		echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow">';
-		echo '<title>' . $title . '</title></head><body><h1>' . $title . '</h1></body></html>';
+		require ABSPATH . WPINC . '/template-loader.php';
 		exit;
+	}
+
+	private function maybeAddThemeNotFoundProbeHeader(): void {
+		$token = isset( $_GET['hide_wp_404_probe'] ) && is_string( $_GET['hide_wp_404_probe'] )
+			? wp_unslash( $_GET['hide_wp_404_probe'] )
+			: '';
+
+		if ( 1 !== preg_match( '/\A[a-zA-Z0-9]{32,64}\z/D', $token ) ) {
+			return;
+		}
+
+		$key   = 'hwp_404_probe_' . hash( 'sha256', $token );
+		$saved = get_transient( $key );
+		if ( ! is_string( $saved ) || ! hash_equals( $saved, $token ) ) {
+			return;
+		}
+
+		delete_transient( $key );
+		header( 'X-Hide-WP-404-Probe: ' . $token );
+	}
+
+	private function isProtectedOriginalPath( string $path ): bool {
+		foreach ( array( 'admin', 'content', 'includes' ) as $type ) {
+			if ( $this->hasPathPrefix( $path, $this->mapper->sourcePath( $type ) ) ) {
+				return true;
+			}
+		}
+
+		$sitePath = $this->mapper->parentPath( $this->mapper->sourcePath( 'login' ) );
+		foreach ( array( 'readme.html', 'license.txt', 'wp-config-sample.php' ) as $file ) {
+			if ( $this->isExactPath( $path, $sitePath . '/' . $file ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private function requestPath(): string {

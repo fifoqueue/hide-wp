@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,8 +15,8 @@ Hide WP Surface reduces common WordPress fingerprints and automated requests:
 
 * Replaces wp-login.php with a configurable login path.
 * Exposes verified aliases for wp-admin, wp-content, and wp-includes.
-* Blocks the original server paths only after loopback verification succeeds.
-* Blocks nonessential readme, license, and sample configuration disclosure files while aliases are active.
+* Sends original server paths to the active theme's 404 template only after loopback verification succeeds.
+* Sends nonessential readme, license, and sample configuration disclosure files to the theme 404 while aliases are active.
 * Rewrites core, plugin, theme, media, responsive image, redirect, and HTML attribute URLs.
 * Removes optional generator, discovery, pingback, and core version hints.
 * Uses generic login errors to reduce account enumeration feedback.
@@ -70,6 +70,11 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.1 =
+
+* Render protected original paths through the active theme's 404 template.
+* Store verified server state separately from sanitized administrator settings.
 
 = 0.1.0 =
 

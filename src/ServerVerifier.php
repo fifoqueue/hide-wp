@@ -109,10 +109,7 @@ final readonly class ServerVerifier {
 			return false;
 		}
 
-		$options                          = $this->settings->all();
-		$options['path_aliases_enabled'] = false;
-		$options['verified_hash']        = '';
-		update_option( Settings::OPTION, $options, false );
+		$this->settings->clearPathVerification();
 
 		return $markerRemoved;
 	}
@@ -203,25 +200,16 @@ final readonly class ServerVerifier {
 			);
 		}
 
-		$options                          = $this->settings->all();
-		$options['path_aliases_enabled'] = true;
-		$options['verified_hash']        = $configurationHash;
-
-		if ( ! update_option( Settings::OPTION, $options, false ) ) {
-			$fresh     = get_option( Settings::OPTION, array() );
-			$freshHash = is_array( $fresh ) && is_string( $fresh['verified_hash'] ?? null )
-				? $fresh['verified_hash']
-				: '';
-
-			if ( ! is_array( $fresh ) || true !== ( $fresh['path_aliases_enabled'] ?? false )
-				|| ! hash_equals( $configurationHash, $freshHash ) ) {
-				Marker::disable();
-				return new WP_Error( 'save', __( 'The verified settings could not be saved.', 'hide-wp' ) );
-			}
+		if ( ! $this->settings->markPathsVerified( $configurationHash ) ) {
+			$this->disable();
+			return new WP_Error(
+				'save',
+				__( 'The verified path state could not be saved. Check database write access for the hide_wp_path_state option.', 'hide-wp' )
+			);
 		}
 
 		if ( ! hash_equals( $configurationHash, $this->settings->configurationHash() )
-			|| ! $this->settings->getBool( 'path_aliases_enabled' ) ) {
+			|| ! $this->settings->pathStateMatches( $configurationHash ) ) {
 			$this->disable();
 			return new WP_Error(
 				'configuration_changed',
@@ -404,26 +392,43 @@ final readonly class ServerVerifier {
 		);
 
 		foreach ( $urls as $url ) {
-			$result = $this->get( add_query_arg( 'hwp_block_probe', wp_generate_password( 8, false ), $url ), 4_096 );
-			if ( is_wp_error( $result ) || 404 !== wp_remote_retrieve_response_code( $result ) ) {
-				return new WP_Error( 'original_paths', __( 'The server still exposes an original static WordPress path.', 'hide-wp' ) );
+			$result = $this->verifyThemeNotFound( $url );
+			if ( is_wp_error( $result ) ) {
+				return new WP_Error(
+					'original_paths',
+					__( 'An original static WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp' )
+				);
 			}
 		}
 
-		$token = wp_generate_password( 40, false, false );
-		set_transient( 'hwp_probe_' . hash( 'sha256', $token ), $token, 60 );
-		$url    = add_query_arg(
-			array(
-				'action' => self::PROBE_ACTION,
-				'token'  => $token,
-			),
-			$this->rawAdminUrl( 'admin-ajax.php' )
-		);
-		$result = $this->get( $url, 4_096 );
-		delete_transient( 'hwp_probe_' . hash( 'sha256', $token ) );
+		$result = $this->verifyThemeNotFound( $this->rawAdminUrl( 'admin-ajax.php' ) );
+		if ( is_wp_error( $result ) ) {
+			return new WP_Error(
+				'admin_block',
+				__( 'The original wp-admin path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp' )
+			);
+		}
 
-		if ( is_wp_error( $result ) || 404 !== wp_remote_retrieve_response_code( $result ) ) {
-			return new WP_Error( 'admin_block', __( 'The server still exposes the original wp-admin path.', 'hide-wp' ) );
+		return true;
+	}
+
+	/**
+	 * @return true|WP_Error
+	 */
+	private function verifyThemeNotFound( string $url ): true|WP_Error {
+		$token = wp_generate_password( 40, false, false );
+		$key   = 'hwp_404_probe_' . hash( 'sha256', $token );
+		set_transient( $key, $token, 60 );
+
+		$result = $this->get( add_query_arg( 'hide_wp_404_probe', $token, $url ), 4_096 );
+		delete_transient( $key );
+		$header = is_wp_error( $result )
+			? ''
+			: (string) wp_remote_retrieve_header( $result, 'x-hide-wp-404-probe' );
+
+		if ( is_wp_error( $result ) || 404 !== wp_remote_retrieve_response_code( $result )
+			|| ! hash_equals( $token, $header ) ) {
+			return new WP_Error( 'theme_404', __( 'The request did not reach the verified WordPress theme 404 handler.', 'hide-wp' ) );
 		}
 
 		return true;

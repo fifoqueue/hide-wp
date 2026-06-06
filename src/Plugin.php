@@ -42,6 +42,7 @@ final class Plugin {
 		if ( false === get_option( Settings::OPTION, false ) ) {
 			add_option( Settings::OPTION, Settings::defaults(), '', false );
 		}
+		delete_option( Settings::PATH_STATE_OPTION );
 		delete_option( Settings::LOGIN_VERIFIED_OPTION );
 	}
 
@@ -49,10 +50,7 @@ final class Plugin {
 		if ( ! Marker::disable() ) {
 			Marker::requestRecovery();
 		}
-		$options                          = ( new Settings() )->all();
-		$options['path_aliases_enabled'] = false;
-		$options['verified_hash']        = '';
-		update_option( Settings::OPTION, $options, false );
+		( new Settings() )->clearPathVerification();
 		delete_option( Settings::LOGIN_VERIFIED_OPTION );
 		delete_option( 'hide_wp_operation_lock' );
 	}
