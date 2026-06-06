@@ -44,13 +44,15 @@ final readonly class RequestGuard {
 			}
 		}
 
-		$adminAliasRelative = $this->serverProvidedAdminAliasRelative();
-		if ( '' !== $adminAliasRelative || $this->shouldServeAdminAlias( $path ) ) {
-			if ( '' === $adminAliasRelative && ( $this->isAdminBootstrapActive() || $this->isAlreadyExecutingAdminAliasTarget( $path ) ) ) {
+		if ( $this->isAdminAliasRequest( $path ) ) {
+			if ( $this->isAdminBootstrapActive() || $this->isAlreadyExecutingAdminAliasTarget( $path ) ) {
 				return;
 			}
 
-			$this->serveAdminAlias( $path, '' === $adminAliasRelative ? null : $adminAliasRelative );
+			// wp-admin aliases must be rewritten by the web server before PHP executes.
+			// Loading wp-admin/*.php from wp_loaded breaks WordPress' native admin bootstrap
+			// and can trigger the database-upgrade screen or broken load-styles.php responses.
+			$this->serveThemeNotFound();
 		}
 
 		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) ) {
@@ -73,62 +75,10 @@ final readonly class RequestGuard {
 	}
 
 
-	private function shouldServeAdminAlias( string $path ): bool {
-		if ( ! $this->settings->pathAliasRequested( 'admin' ) || ! ( Marker::isEnabled() || Marker::isProbeEnabled() ) ) {
-			return false;
-		}
-
-		return $this->hasPathPrefix( $path, $this->mapper->targetPath( 'admin' ) );
+	private function isAdminAliasRequest( string $path ): bool {
+		return $this->settings->pathAliasRequested( 'admin' )
+			&& $this->hasPathPrefix( $path, $this->mapper->targetPath( 'admin' ) );
 	}
-
-	private function serverProvidedAdminAliasRelative(): string {
-		if ( ! $this->settings->pathAliasRequested( 'admin' ) || ! ( Marker::isEnabled() || Marker::isProbeEnabled() ) ) {
-			return '';
-		}
-
-		$value = isset( $_GET['hide_wp_admin_alias'] ) && is_string( $_GET['hide_wp_admin_alias'] )
-			? wp_unslash( $_GET['hide_wp_admin_alias'] )
-			: '';
-
-		if ( '' === $value || str_contains( $value, "\0" ) ) {
-			return '';
-		}
-
-		$relative = ltrim( $this->normalizePath( '/' . ltrim( $value, '/' ) ), '/' );
-
-		return '' === $relative ? 'index.php' : $relative;
-	}
-
-	private function serveAdminAlias( string $path, ?string $serverProvidedRelative = null ): never {
-		$relative = null === $serverProvidedRelative ? $this->adminAliasRelativePath( $path ) : $serverProvidedRelative;
-
-		if ( ! $this->isSafeAdminRelativePath( $relative ) ) {
-			$this->serveThemeNotFound();
-		}
-
-		$target = ABSPATH . 'wp-admin/' . $relative;
-		if ( is_dir( $target ) ) {
-			$target = rtrim( $target, '/\\' ) . '/index.php';
-		}
-
-		if ( ! is_file( $target ) || 'php' !== strtolower( pathinfo( $target, PATHINFO_EXTENSION ) ) ) {
-			$this->serveThemeNotFound();
-		}
-
-		$sourcePath  = $this->mapper->sourcePath( 'admin' ) . '/' . $relative;
-		$queryString = $this->currentQueryString( array( 'hide_wp_admin_alias' ) );
-
-		unset( $_GET['hide_wp_admin_alias'], $_REQUEST['hide_wp_admin_alias'] );
-		$_SERVER['REQUEST_URI']  = $sourcePath . ( '' === $queryString ? '' : '?' . $queryString );
-		$_SERVER['QUERY_STRING'] = $queryString;
-		$_SERVER['SCRIPT_NAME']  = $sourcePath;
-		$_SERVER['PHP_SELF']     = $sourcePath;
-		$GLOBALS['pagenow']      = basename( $relative );
-
-		require $target;
-		exit;
-	}
-
 
 	private function adminAliasRelativePath( string $path ): string {
 		$aliasPath = $this->mapper->targetPath( 'admin' );
