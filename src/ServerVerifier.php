@@ -389,7 +389,17 @@ final readonly class ServerVerifier {
 			if ( is_wp_error( $result ) || 200 !== wp_remote_retrieve_response_code( $result )
 				|| ! str_contains( $body, self::PROBE_MARKER ) ) {
 				delete_transient( 'hwp_probe_' . hash( 'sha256', $token ) );
-				return new WP_Error( 'admin_alias', __( 'The wp-admin alias did not execute admin-ajax.php.', 'hide-wp' ) );
+
+				return new WP_Error(
+					'admin_alias',
+					sprintf(
+						/* translators: 1: checked URL, 2: HTTP status or transport error, 3: short response excerpt. */
+						__( 'The wp-admin alias did not execute admin-ajax.php. Checked %1$s. Result: %2$s. Response: %3$s', 'hide-wp' ),
+						esc_url_raw( $adminUrl ),
+						$this->responseStatus( $result ),
+						$this->responseExcerpt( $result )
+					)
+				);
 			}
 		}
 
@@ -452,6 +462,28 @@ final readonly class ServerVerifier {
 		if ( $hadActiveMarker ) {
 			Marker::enable();
 		}
+	}
+
+	private function responseStatus( array|WP_Error $result ): string {
+		if ( is_wp_error( $result ) ) {
+			return $result->get_error_message();
+		}
+
+		$code = wp_remote_retrieve_response_code( $result );
+
+		return 0 === $code ? __( 'No HTTP status', 'hide-wp' ) : (string) $code;
+	}
+
+	private function responseExcerpt( array|WP_Error $result ): string {
+		if ( is_wp_error( $result ) ) {
+			return '-';
+		}
+
+		$body = trim( wp_strip_all_tags( wp_remote_retrieve_body( $result ) ) );
+		$body = preg_replace( '/\s+/', ' ', $body );
+		$body = is_string( $body ) ? $body : '';
+
+		return '' === $body ? '-' : substr( $body, 0, 240 );
 	}
 
 	/**

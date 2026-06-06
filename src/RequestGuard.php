@@ -44,6 +44,10 @@ final readonly class RequestGuard {
 			}
 		}
 
+		if ( $this->shouldServeAdminAlias( $path ) ) {
+			$this->serveAdminAlias( $path );
+		}
+
 		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) ) {
 			$this->serveThemeNotFound();
 		}
@@ -61,6 +65,59 @@ final readonly class RequestGuard {
 
 		require ABSPATH . 'wp-login.php';
 		exit;
+	}
+
+	private function shouldServeAdminAlias( string $path ): bool {
+		if ( ! $this->settings->pathAliasRequested( 'admin' ) || ! ( Marker::isEnabled() || Marker::isProbeEnabled() ) ) {
+			return false;
+		}
+
+		return $this->hasPathPrefix( $path, $this->mapper->targetPath( 'admin' ) );
+	}
+
+	private function serveAdminAlias( string $path ): never {
+		$aliasPath = $this->mapper->targetPath( 'admin' );
+		$relative  = ltrim( substr( $this->normalizePath( $path ), strlen( untrailingslashit( $this->normalizePath( $aliasPath ) ) ) ), '/' );
+		$relative  = '' === $relative ? 'index.php' : $relative;
+
+		if ( ! $this->isSafeAdminRelativePath( $relative ) ) {
+			$this->serveThemeNotFound();
+		}
+
+		$target = ABSPATH . 'wp-admin/' . $relative;
+		if ( is_dir( $target ) ) {
+			$target = rtrim( $target, '/\\' ) . '/index.php';
+		}
+
+		if ( ! is_file( $target ) || 'php' !== strtolower( pathinfo( $target, PATHINFO_EXTENSION ) ) ) {
+			$this->serveThemeNotFound();
+		}
+
+		$sourcePath  = $this->mapper->sourcePath( 'admin' ) . '/' . $relative;
+		$queryString = $this->currentQueryString();
+
+		$_SERVER['REQUEST_URI']  = $sourcePath . ( '' === $queryString ? '' : '?' . $queryString );
+		$_SERVER['QUERY_STRING'] = $queryString;
+		$_SERVER['SCRIPT_NAME']  = $sourcePath;
+		$_SERVER['PHP_SELF']     = $sourcePath;
+		$GLOBALS['pagenow']      = basename( $relative );
+
+		require $target;
+		exit;
+	}
+
+	private function isSafeAdminRelativePath( string $relative ): bool {
+		if ( '' === $relative || str_contains( $relative, "\0" ) || str_contains( $relative, '\\' ) ) {
+			return false;
+		}
+
+		foreach ( explode( '/', $relative ) as $segment ) {
+			if ( '' === $segment || '.' === $segment || '..' === $segment ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	private function currentQueryString(): string {

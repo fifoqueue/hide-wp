@@ -92,6 +92,16 @@ final class Marker {
 		return false;
 	}
 
+	public static function isProbeEnabled(): bool {
+		foreach ( self::probePaths() as $path ) {
+			if ( is_file( $path ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	public static function isRecoveryRequested(): bool {
 		return defined( 'HIDE_WP_RECOVERY_MODE' ) && true === HIDE_WP_RECOVERY_MODE
 			|| is_file( self::recoveryPath() );

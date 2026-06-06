@@ -34,13 +34,12 @@ use function wp_remote_retrieve_response_code;
 use function wpautop;
 use function wp_kses_post;
 
-use const HOUR_IN_SECONDS;
 use const MINUTE_IN_SECONDS;
 
 final class Updater {
 	private const SLUG = 'hide-wp-surface';
 	private const CACHE_KEY = 'hide_wp_github_latest_release';
-	private const CACHE_TTL = 6 * HOUR_IN_SECONDS;
+	private const CACHE_TTL = 10 * MINUTE_IN_SECONDS;
 	private const PREFERRED_ASSETS = array(
 		'hide-wp-surface.zip',
 		'hide-wp-master.zip',
@@ -107,8 +106,11 @@ final class Updater {
 		}
 
 		return array(
+			'id'           => $updateObject->id,
 			'slug'         => self::SLUG,
+			'plugin'       => HIDE_WP_BASENAME,
 			'version'      => $updateObject->new_version,
+			'new_version'  => $updateObject->new_version,
 			'url'          => $updateObject->url,
 			'package'      => $updateObject->package,
 			'tested'       => $updateObject->tested,
@@ -130,7 +132,7 @@ final class Updater {
 			return $result;
 		}
 
-		$release = $this->latestRelease();
+		$release = $this->latestRelease( false );
 		if ( null === $release ) {
 			return $result;
 		}
@@ -171,11 +173,12 @@ final class Updater {
 
 		if ( 'update' === ( $hookExtra['action'] ?? '' ) && 'plugin' === ( $hookExtra['type'] ?? '' ) ) {
 			delete_site_transient( self::CACHE_KEY );
+			delete_site_transient( $this->cacheKey( $this->repository() ) );
 		}
 	}
 
 	private function buildUpdateObject(): ?stdClass {
-		$release = $this->latestRelease();
+		$release = $this->latestRelease( false );
 		if ( null === $release ) {
 			return null;
 		}
@@ -203,16 +206,28 @@ final class Updater {
 	/**
 	 * @return array<string, mixed>|null
 	 */
-	private function latestRelease(): ?array {
-		$cached = get_site_transient( self::CACHE_KEY );
-		if ( is_array( $cached ) ) {
-			return true === ( $cached['ok'] ?? false ) && is_array( $cached['release'] ?? null ) ? $cached['release'] : null;
-		}
+	private function latestRelease( bool $allowPersistentCache = true ): ?array {
+		static $memoryCache = array();
 
 		$repository = $this->repository();
 		if ( '' === $repository ) {
-			$this->cacheFailure();
+			$this->cacheFailure( $this->cacheKey( 'invalid' ), 5 * MINUTE_IN_SECONDS );
 			return null;
+		}
+
+		if ( isset( $memoryCache[ $repository ] ) ) {
+			return is_array( $memoryCache[ $repository ] ) ? $memoryCache[ $repository ] : null;
+		}
+
+		$cacheKey = $this->cacheKey( $repository );
+		if ( $allowPersistentCache ) {
+			$cached = get_site_transient( $cacheKey );
+			if ( is_array( $cached ) ) {
+				$release = true === ( $cached['ok'] ?? false ) && is_array( $cached['release'] ?? null ) ? $cached['release'] : null;
+				$memoryCache[ $repository ] = $release;
+
+				return $release;
+			}
 		}
 
 		$response = wp_remote_get(
@@ -227,36 +242,43 @@ final class Updater {
 		);
 
 		if ( $response instanceof WP_Error || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			$this->cacheFailure();
+			$memoryCache[ $repository ] = null;
+			$this->cacheFailure( $cacheKey, 5 * MINUTE_IN_SECONDS );
 			return null;
 		}
 
 		$release = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $release ) || '' === $this->releaseVersion( $release ) ) {
-			$this->cacheFailure();
+			$memoryCache[ $repository ] = null;
+			$this->cacheFailure( $cacheKey, 5 * MINUTE_IN_SECONDS );
 			return null;
 		}
 
 		if ( '' === $this->packageUrl( $release ) ) {
-			$this->cacheFailure( 5 * MINUTE_IN_SECONDS );
+			$memoryCache[ $repository ] = null;
+			$this->cacheFailure( $cacheKey, 2 * MINUTE_IN_SECONDS );
 			return null;
 		}
 
-		set_site_transient(
-			self::CACHE_KEY,
-			array(
-				'ok'      => true,
-				'release' => $release,
-			),
-			self::CACHE_TTL
-		);
+		$memoryCache[ $repository ] = $release;
+
+		if ( $allowPersistentCache ) {
+			set_site_transient(
+				$cacheKey,
+				array(
+					'ok'      => true,
+					'release' => $release,
+				),
+				self::CACHE_TTL
+			);
+		}
 
 		return $release;
 	}
 
-	private function cacheFailure( int $ttl = HOUR_IN_SECONDS ): void {
+	private function cacheFailure( string $cacheKey, int $ttl ): void {
 		set_site_transient(
-			self::CACHE_KEY,
+			$cacheKey,
 			array(
 				'ok' => false,
 			),
@@ -315,6 +337,10 @@ final class Updater {
 			: sprintf( 'Release %s', $this->releaseVersion( $release ) );
 
 		return wp_kses_post( wpautop( esc_html( $body ) ) );
+	}
+
+	private function cacheKey( string $repository ): string {
+		return self::CACHE_KEY . '_' . substr( hash( 'sha256', strtolower( $repository ) ), 0, 12 );
 	}
 
 	private function repository(): string {

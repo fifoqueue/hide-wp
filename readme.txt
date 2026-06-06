@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.8
+Stable tag: 0.1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -91,6 +91,14 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.9 =
+* Restored the Settings action link on the Plugins screen.
+* Added a WordPress-level fallback for wp-admin alias requests that reach the front controller, including admin-ajax.php verification requests.
+* Improved wp-admin alias verification error details with the checked URL, HTTP status, and a short response excerpt.
+* Reduced GitHub release caching so newly published releases can appear during the next WordPress update check.
+* Added a repository-specific updater cache key to avoid stale release data when the GitHub repository changes.
+
 
 = 0.1.8 =
 * Moved server marker files to a stable wp-content runtime directory to avoid breakage when the plugin folder name changes.
