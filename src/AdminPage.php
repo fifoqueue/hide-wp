@@ -39,6 +39,8 @@ final readonly class AdminPage {
 		);
 	}
 
+
+
 	/**
 	 * @param array<int|string, string> $links
 	 * @return array<int|string, string>

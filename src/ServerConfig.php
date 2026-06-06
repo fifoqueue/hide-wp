@@ -64,14 +64,14 @@ final readonly class ServerConfig {
 		foreach ( $aliases as $alias ) {
 			$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 			$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-			$lines[] = sprintf( 'RewriteRule ^%s(?:/.*)?$ index.php [END,QSA,NC]', preg_quote( $alias['source'], '#' ) );
+			$lines[] = sprintf( 'RewriteRule ^(%s(?:/.*)?)$ index.php?hide_wp_original_path=$1 [END,QSA,NC]', preg_quote( $alias['source'], '#' ) );
 		}
 
 		$lines[] = '';
 		$lines[] = '# Send nonessential core disclosure files to the theme 404.';
 		$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 		$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-		$lines[] = 'RewriteRule ^(?:readme\.html|license\.txt|wp-config-sample\.php)$ index.php [END,QSA,NC]';
+		$lines[] = 'RewriteRule ^(readme\.html|license\.txt|wp-config-sample\.php)$ index.php?hide_wp_original_path=$1 [END,QSA,NC]';
 
 		$lines[] = '</IfModule>';
 		$lines[] = '# END Hide WP Surface';
@@ -105,9 +105,10 @@ final readonly class ServerConfig {
 			sprintf( 'if (-f "%s") { set $hwp_paths_enabled 0; }', $recovery ),
 			'# Detect only the original client request path, not the internally rewritten alias target.',
 			'set $hwp_original_path 0;',
-			sprintf( 'if ($request_uri ~* "^(?:%s)(?:[/?]|$)") { set $hwp_original_path 1; }', $sources ),
+			'set $hwp_original_path_value "";',
+			sprintf( 'if ($request_uri ~* "^((?:%s)(?:[/?]|$)[^?]*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; }', $sources ),
 			'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";',
-			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s$is_args$args last; }', $index ),
+			sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s?hide_wp_original_path=$hwp_original_path_value&$args last; }', $index ),
 			'',
 			'# Internal aliases.',
 		);

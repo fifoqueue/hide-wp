@@ -30,7 +30,7 @@ final readonly class RequestGuard {
 			return;
 		}
 
-		$path = $this->requestPath();
+		$path = $this->effectiveRequestPath();
 
 		if ( $this->settings->loginRequested() ) {
 			if ( $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) ) ) {
@@ -66,6 +66,7 @@ final readonly class RequestGuard {
 		require ABSPATH . 'wp-login.php';
 		exit;
 	}
+
 
 	private function shouldServeAdminAlias( string $path ): bool {
 		if ( ! $this->settings->pathAliasRequested( 'admin' ) || ! ( Marker::isEnabled() || Marker::isProbeEnabled() ) ) {
@@ -256,6 +257,38 @@ final readonly class RequestGuard {
 		}
 
 		return false;
+	}
+
+	private function effectiveRequestPath(): string {
+		$path = $this->requestPath();
+
+		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) ) {
+			return $path;
+		}
+
+		$originalPath = $this->serverProvidedOriginalPath();
+		if ( '' !== $originalPath && $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $originalPath ) ) {
+			return $originalPath;
+		}
+
+		return $path;
+	}
+
+	private function serverProvidedOriginalPath(): string {
+		$value = isset( $_GET['hide_wp_original_path'] ) && is_string( $_GET['hide_wp_original_path'] )
+			? wp_unslash( $_GET['hide_wp_original_path'] )
+			: '';
+
+		if ( '' === $value || str_contains( $value, "\0" ) ) {
+			return '';
+		}
+
+		$path = wp_parse_url( $value, PHP_URL_PATH );
+		if ( ! is_string( $path ) || '' === $path ) {
+			$path = $value;
+		}
+
+		return $this->normalizePath( '/' . ltrim( $path, '/' ) );
 	}
 
 	private function requestPath(): string {

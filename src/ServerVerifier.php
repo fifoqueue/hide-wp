@@ -464,6 +464,7 @@ final readonly class ServerVerifier {
 		}
 	}
 
+
 	private function responseStatus( array|WP_Error $result ): string {
 		if ( is_wp_error( $result ) ) {
 			return $result->get_error_message();

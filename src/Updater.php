@@ -106,11 +106,8 @@ final class Updater {
 		}
 
 		return array(
-			'id'           => $updateObject->id,
 			'slug'         => self::SLUG,
-			'plugin'       => HIDE_WP_BASENAME,
 			'version'      => $updateObject->new_version,
-			'new_version'  => $updateObject->new_version,
 			'url'          => $updateObject->url,
 			'package'      => $updateObject->package,
 			'tested'       => $updateObject->tested,
@@ -275,6 +272,7 @@ final class Updater {
 
 		return $release;
 	}
+
 
 	private function cacheFailure( string $cacheKey, int $ttl ): void {
 		set_site_transient(
