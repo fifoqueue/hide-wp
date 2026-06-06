@@ -80,19 +80,46 @@ jobs:
           RELEASE_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          php -r '
-            $repo = getenv("RELEASE_REPOSITORY");
-            if (!preg_match("/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/", $repo)) {
-                fwrite(STDERR, "Invalid GitHub repository: " . $repo . PHP_EOL);
-                exit(1);
-            }
-            $file = "hide-wp.php";
-            $source = file_get_contents($file);
-            $source = preg_replace("/Plugin URI:\s+https:\/\/github\.com\/[^\r\n]+/", "Plugin URI:  https://github.com/" . $repo, $source);
-            $source = preg_replace("/Update URI:\s+https:\/\/github\.com\/[^\r\n]+/", "Update URI:  https://github.com/" . $repo, $source);
-            $source = preg_replace("/define\( '''HIDE_WP_GITHUB_REPOSITORY''', '''[^''']+''' \);/", "define( '''HIDE_WP_GITHUB_REPOSITORY''', '''" . $repo . "''' );", $source);
-            file_put_contents($file, $source);
-          '
+
+          cat > /tmp/hide-wp-stamp.php <<'PHP'
+          <?php
+          $repo = getenv('RELEASE_REPOSITORY');
+
+          if (!is_string($repo) || !preg_match('/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', $repo)) {
+              fwrite(STDERR, 'Invalid GitHub repository: ' . (string) $repo . PHP_EOL);
+              exit(1);
+          }
+
+          $file = 'hide-wp.php';
+          $source = file_get_contents($file);
+
+          if (!is_string($source)) {
+              fwrite(STDERR, 'Could not read ' . $file . PHP_EOL);
+              exit(1);
+          }
+
+          $source = preg_replace(
+              '/Plugin URI:\s+https:\/\/github\.com\/[^\r\n]+/',
+              'Plugin URI:  https://github.com/' . $repo,
+              $source
+          );
+
+          $source = preg_replace(
+              '/Update URI:\s+https:\/\/github\.com\/[^\r\n]+/',
+              'Update URI:  https://github.com/' . $repo,
+              $source
+          );
+
+          $source = preg_replace(
+              "/define\(\s*'HIDE_WP_GITHUB_REPOSITORY'\s*,\s*'[^']+'\s*\);/",
+              "define( 'HIDE_WP_GITHUB_REPOSITORY', '" . $repo . "' );",
+              $source
+          );
+
+          file_put_contents($file, $source);
+          PHP
+
+          php /tmp/hide-wp-stamp.php
 
       - name: Extract release notes
         shell: bash
