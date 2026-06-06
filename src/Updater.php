@@ -37,6 +37,9 @@ use function wp_kses_post;
 use const MINUTE_IN_SECONDS;
 
 final class Updater {
+	public function __construct( private Settings $settings ) {
+	}
+
 	private const SLUG = 'hide-wp-surface';
 	private const CACHE_KEY = 'hide_wp_github_latest_release';
 	private const CACHE_TTL = 10 * MINUTE_IN_SECONDS;
@@ -47,7 +50,7 @@ final class Updater {
 	);
 
 	public function boot(): void {
-		if ( defined( 'HIDE_WP_DISABLE_GITHUB_UPDATER' ) && true === HIDE_WP_DISABLE_GITHUB_UPDATER ) {
+		if ( ! $this->settings->getBool( 'github_updates_enabled' ) || ( defined( 'HIDE_WP_DISABLE_GITHUB_UPDATER' ) && true === HIDE_WP_DISABLE_GITHUB_UPDATER ) ) {
 			return;
 		}
 
@@ -234,14 +237,22 @@ final class Updater {
 			}
 		}
 
+		$headers = array(
+			'Accept'               => 'application/vnd.github+json',
+			'User-Agent'           => 'Hide WP Surface/' . HIDE_WP_VERSION . '; ' . home_url( '/' ),
+			'X-GitHub-Api-Version' => '2022-11-28',
+		);
+
+		$token = $this->githubToken();
+		if ( '' !== $token ) {
+			$headers['Authorization'] = 'Bearer ' . $token;
+		}
+
 		$response = wp_remote_get(
 			'https://api.github.com/repos/' . $repository . '/releases/latest',
 			array(
 				'timeout' => 10,
-				'headers' => array(
-					'Accept'     => 'application/vnd.github+json',
-					'User-Agent' => 'Hide WP Surface/' . HIDE_WP_VERSION . '; ' . home_url( '/' ),
-				),
+				'headers' => $headers,
 			)
 		);
 
@@ -349,11 +360,23 @@ final class Updater {
 	}
 
 	private function repository(): string {
-		$repository = defined( 'HIDE_WP_GITHUB_REPOSITORY' ) && is_string( HIDE_WP_GITHUB_REPOSITORY )
-			? HIDE_WP_GITHUB_REPOSITORY
-			: 'fifoqueue/hide-wp-surface';
+		$repository = $this->settings->getString( 'github_repository' );
+		if ( '' === $repository && defined( 'HIDE_WP_GITHUB_REPOSITORY' ) && is_string( HIDE_WP_GITHUB_REPOSITORY ) ) {
+			$repository = HIDE_WP_GITHUB_REPOSITORY;
+		}
 
 		return 1 === preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', $repository ) ? $repository : '';
+	}
+
+	private function githubToken(): string {
+		$token = $this->settings->getString( 'github_token' );
+		if ( '' === $token && defined( 'HIDE_WP_GITHUB_TOKEN' ) && is_string( HIDE_WP_GITHUB_TOKEN ) ) {
+			$token = HIDE_WP_GITHUB_TOKEN;
+		}
+
+		$token = preg_replace( '/[^A-Za-z0-9_.-]+/', '', $token );
+
+		return is_string( $token ) ? $token : '';
 	}
 
 	private function repositoryUrl(): string {

@@ -29,6 +29,10 @@ final class Settings {
 			'remove_discovery_links' => true,
 			'strip_core_version'     => true,
 			'generic_login_errors'   => true,
+			'nginx_fastcgi_pass'    => '',
+			'github_updates_enabled' => true,
+			'github_repository'      => self::defaultGithubRepository(),
+			'github_token'           => '',
 		);
 	}
 
@@ -260,9 +264,56 @@ final class Settings {
 				'remove_discovery_links',
 				'strip_core_version',
 				'generic_login_errors',
+				'github_updates_enabled',
 			) as $key
 		) {
 			$result[ $key ] = isset( $input[ $key ] ) && '1' === (string) $input[ $key ];
+		}
+
+
+		$nginxFastcgiPass = isset( $input['nginx_fastcgi_pass'] ) && is_string( $input['nginx_fastcgi_pass'] )
+			? trim( wp_unslash( $input['nginx_fastcgi_pass'] ) )
+			: (string) $current['nginx_fastcgi_pass'];
+		if ( '' === $nginxFastcgiPass || $this->isValidNginxFastcgiPass( $nginxFastcgiPass ) ) {
+			$result['nginx_fastcgi_pass'] = $nginxFastcgiPass;
+		} else {
+			add_settings_error(
+				self::OPTION,
+				'invalid_nginx_fastcgi_pass',
+				__( 'The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name.', 'hide-wp' ),
+				'error'
+			);
+		}
+
+		$githubRepository = isset( $input['github_repository'] ) && is_string( $input['github_repository'] )
+			? trim( wp_unslash( $input['github_repository'] ) )
+			: (string) $current['github_repository'];
+		if ( $this->isValidGithubRepository( $githubRepository ) ) {
+			$result['github_repository'] = $githubRepository;
+		} else {
+			add_settings_error(
+				self::OPTION,
+				'invalid_github_repository',
+				__( 'The GitHub repository must use owner/repository format.', 'hide-wp' ),
+				'error'
+			);
+		}
+
+		if ( isset( $input['github_token_clear'] ) && '1' === (string) $input['github_token_clear'] ) {
+			$result['github_token'] = '';
+		} elseif ( isset( $input['github_token'] ) && is_string( $input['github_token'] ) ) {
+			$githubToken = trim( wp_unslash( $input['github_token'] ) );
+			if ( '' !== $githubToken ) {
+				$result['github_token'] = $this->sanitizeGithubToken( $githubToken );
+			}
+		}
+
+		if (
+			$result['github_updates_enabled'] !== $current['github_updates_enabled']
+			|| $result['github_repository'] !== $current['github_repository']
+			|| $result['github_token'] !== $current['github_token']
+		) {
+			$this->clearGithubUpdateCache( (string) $current['github_repository'], (string) $result['github_repository'] );
 		}
 
 		if ( is_multisite() ) {
@@ -366,6 +417,40 @@ final class Settings {
 		$slugs = $this->enabledRouteSlugsFromSettings( $this->all() );
 
 		return count( array_unique( $slugs ) ) === count( $slugs );
+	}
+
+	private static function defaultGithubRepository(): string {
+		if ( defined( 'HIDE_WP_GITHUB_REPOSITORY' ) && is_string( HIDE_WP_GITHUB_REPOSITORY )
+			&& 1 === preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', HIDE_WP_GITHUB_REPOSITORY ) ) {
+			return HIDE_WP_GITHUB_REPOSITORY;
+		}
+
+		return 'fifoqueue/hide-wp-surface';
+	}
+
+	private function isValidGithubRepository( string $repository ): bool {
+		return 1 === preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', $repository );
+	}
+
+	private function sanitizeGithubToken( string $token ): string {
+		$token = preg_replace( '/[^A-Za-z0-9_.-]+/', '', $token );
+
+		return is_string( $token ) ? substr( $token, 0, 255 ) : '';
+	}
+
+	private function isValidNginxFastcgiPass( string $value ): bool {
+		return 1 === preg_match( '/\A(?:unix:\/[-A-Za-z0-9_\/.+~]+\.sock|[A-Za-z0-9_.-]+:[0-9]{2,5}|[A-Za-z0-9_.-]+)\z/', $value );
+	}
+
+	private function clearGithubUpdateCache( string ...$repositories ): void {
+		delete_site_transient( 'update_plugins' );
+		delete_site_transient( 'hide_wp_github_latest_release' );
+		foreach ( array_unique( $repositories ) as $repository ) {
+			if ( '' === $repository ) {
+				continue;
+			}
+			delete_site_transient( 'hide_wp_github_latest_release_' . substr( hash( 'sha256', strtolower( $repository ) ), 0, 12 ) );
+		}
 	}
 
 	private function isValidSlug( string $slug ): bool {

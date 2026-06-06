@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.17
+Stable tag: 0.1.18
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -52,23 +52,19 @@ The generated Nginx block uses the rewrite module. Do not deploy it on an upstre
 
 == Automatic Updates ==
 
-Hide WP Surface can check the public GitHub Releases API for updates from `fifoqueue/hide-wp-surface`. To publish an update with the included GitHub Actions workflow:
+Hide WP Surface can check GitHub Releases for updates. Configure the repository and optional GitHub token on Settings > Hide WP Surface. A token is recommended for private repositories or hosts that hit GitHub's unauthenticated API rate limit.
+
+To publish an update with the included GitHub Actions workflow:
 
 1. Bump the `Version` header in `hide-wp.php`, `HIDE_WP_VERSION`, and the `Stable tag` in `readme.txt`.
 2. Add a changelog entry for the new version.
 3. Commit the change and push it to `main` or `master`.
-4. The workflow reads the plugin version, creates the matching tag such as `v0.1.5`, builds `hide-wp-surface.zip`, and uploads it to the GitHub Release.
+4. The workflow reads the plugin version, creates the matching tag such as `v0.1.18`, builds `hide-wp-surface.zip`, and uploads it to the GitHub Release.
 5. If the matching version tag already exists, the workflow fails so an existing release is not overwritten accidentally.
 
 The updater prefers release assets named `hide-wp-surface.zip`, `hide-wp-master.zip`, or `hide-wp.zip`, and otherwise uses the first `.zip` release asset. Commits update WordPress only after the workflow creates a versioned GitHub Release with a ZIP asset.
 
-To use a fork or a different repository, define this before the plugin loads:
-
-`define( 'HIDE_WP_GITHUB_REPOSITORY', 'owner/repository' );`
-
-To disable GitHub update checks entirely:
-
-`define( 'HIDE_WP_DISABLE_GITHUB_UPDATER', true );`
+`HIDE_WP_GITHUB_REPOSITORY`, `HIDE_WP_GITHUB_TOKEN`, and `HIDE_WP_DISABLE_GITHUB_UPDATER` constants are still honored for operators who need environment-level overrides, but the plugin settings are the normal configuration path.
 
 == Emergency Recovery ==
 
@@ -91,6 +87,13 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.18 =
+* Changed generated Nginx wp-admin aliases to execute admin PHP files directly through FastCGI, avoiding theme 404s, broken load-styles.php/load-scripts.php, and database-upgrade-screen side effects caused by front-controller routing.
+* Added a Nginx FastCGI pass setting used by the generated admin alias block.
+* Added GitHub updater settings for repository, enable/disable state, and an optional API token so update checks no longer require wp-config.php constants.
+* Added GitHub API token support to the updater for private repositories and rate-limit avoidance.
+* Cleared update transients when GitHub updater settings change.
 
 = 0.1.17 =
 * Changed generated Nginx admin alias routing to server-level native rewrites so /control/admin-ajax.php and load-styles.php reach wp-admin before generic WordPress front-controller handling.

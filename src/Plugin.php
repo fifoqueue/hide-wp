@@ -66,10 +66,10 @@ final class Plugin {
 		( new RequestGuard( $settings, $mapper ) )->boot();
 		( new HtmlCleaner( $settings, $mapper ) )->boot();
 		$verifier->boot();
-		( new Updater() )->boot();
+		( new Updater( $settings ) )->boot();
 
 		if ( is_admin() ) {
-			( new AdminPage( $settings, $mapper, new ServerConfig( $mapper ), $verifier, $cookies ) )->boot();
+			( new AdminPage( $settings, $mapper, new ServerConfig( $mapper, $settings ), $verifier, $cookies ) )->boot();
 		}
 	}
 }

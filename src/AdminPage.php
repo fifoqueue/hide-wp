@@ -210,6 +210,56 @@ final readonly class AdminPage {
 					</tr>
 				</table>
 
+				<h2><?php echo esc_html__( 'Nginx Integration', 'hide-wp' ); ?></h2>
+				<p class="description">
+					<?php echo esc_html__( 'The Nginx wp-admin alias executes admin PHP files directly through FastCGI. Set this to the same fastcgi_pass target used by your normal PHP location.', 'hide-wp' ); ?>
+				</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="hide-wp-nginx-fastcgi-pass"><?php echo esc_html__( 'Nginx FastCGI pass', 'hide-wp' ); ?></label></th>
+						<td>
+							<input type="text" class="regular-text code" id="hide-wp-nginx-fastcgi-pass" name="<?php echo esc_attr( Settings::OPTION ); ?>[nginx_fastcgi_pass]" value="<?php echo esc_attr( (string) $options['nginx_fastcgi_pass'] ); ?>" placeholder="unix:/run/php/php8.5-fpm.sock">
+							<p class="description"><?php echo esc_html__( 'Examples: unix:/run/php/php8.5-fpm.sock, 127.0.0.1:9000, or a named upstream. Leave blank only if you will edit the generated Nginx block manually.', 'hide-wp' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
+				<h2><?php echo esc_html__( 'Automatic Updates', 'hide-wp' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php echo esc_html__( 'GitHub update checks', 'hide-wp' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( Settings::OPTION ); ?>[github_updates_enabled]" value="1" <?php checked( true, $options['github_updates_enabled'] ); ?>>
+								<?php echo esc_html__( 'Check GitHub Releases for plugin updates', 'hide-wp' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="hide-wp-github-repository"><?php echo esc_html__( 'GitHub repository', 'hide-wp' ); ?></label></th>
+						<td>
+							<input type="text" class="regular-text code" id="hide-wp-github-repository" name="<?php echo esc_attr( Settings::OPTION ); ?>[github_repository]" value="<?php echo esc_attr( (string) $options['github_repository'] ); ?>" placeholder="owner/repository">
+							<p class="description"><?php echo esc_html__( 'Use owner/repository. The latest GitHub Release must include a ZIP asset such as hide-wp-surface.zip.', 'hide-wp' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="hide-wp-github-token"><?php echo esc_html__( 'GitHub token', 'hide-wp' ); ?></label></th>
+						<td>
+							<input type="password" class="regular-text code" id="hide-wp-github-token" name="<?php echo esc_attr( Settings::OPTION ); ?>[github_token]" value="" autocomplete="new-password" placeholder="<?php echo esc_attr__( 'Leave blank to keep the saved token', 'hide-wp' ); ?>">
+							<p class="description">
+								<?php echo '' !== (string) $options['github_token'] ? esc_html__( 'A token is saved. Enter a new token to replace it.', 'hide-wp' ) : esc_html__( 'No token is saved. Public GitHub API checks may be rate limited without one.', 'hide-wp' ); ?>
+							</p>
+							<?php if ( '' !== (string) $options['github_token'] ) : ?>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( Settings::OPTION ); ?>[github_token_clear]" value="1">
+									<?php echo esc_html__( 'Clear the saved token', 'hide-wp' ); ?>
+								</label>
+							<?php endif; ?>
+							<p class="description"><?php echo esc_html__( 'For private repositories or rate-limit avoidance, use a fine-grained GitHub token with Contents: read access.', 'hide-wp' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
 				<h2><?php echo esc_html__( 'Fingerprint Cleanup', 'hide-wp' ); ?></h2>
 				<table class="form-table" role="presentation">
 					<?php

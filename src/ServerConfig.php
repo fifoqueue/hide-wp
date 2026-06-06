@@ -7,7 +7,7 @@ namespace HideWp;
 defined( 'ABSPATH' ) || exit;
 
 final readonly class ServerConfig {
-	public function __construct( private PathMapper $mapper ) {
+	public function __construct( private PathMapper $mapper, private Settings $settings ) {
 	}
 
 	public function apache(): string {
@@ -108,8 +108,7 @@ final readonly class ServerConfig {
 			$targetPattern = preg_quote( $target, '~' );
 
 			if ( 'admin' === $alias['type'] ) {
-				$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/?$ %s/index.php$is_args$args last; }', $recovery, $targetPattern, $source );
-				$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/(.*)$ %s/$1$is_args$args last; }', $recovery, $targetPattern, $source );
+				$lines = array_merge( $lines, $this->nginxAdminAliasLocations( $source, $target, $recovery ) );
 				continue;
 			}
 
@@ -132,6 +131,56 @@ final readonly class ServerConfig {
 		$lines[] = '# END Hide WP Surface';
 
 		return implode( "\n", $lines );
+	}
+
+
+	/**
+	 * @return list<string>
+	 */
+	private function nginxAdminAliasLocations( string $source, string $target, string $recovery ): array {
+		$root = $this->quoteNginx( rtrim( str_replace( '\\', '/', ABSPATH ), '/' ) );
+		$pass = $this->quoteNginx( $this->settings->getString( 'nginx_fastcgi_pass' ) );
+		if ( '' === $pass ) {
+			$pass = '__SET_NGINX_FASTCGI_PASS_IN_HIDE_WP_SETTINGS__';
+		}
+
+		$targetPattern = preg_quote( $target, '~' );
+		$sourcePrefix = rtrim( $source, '/' );
+		$lines = array(
+			'# wp-admin alias: execute admin PHP files through FastCGI directly.',
+			'# Keep these blocks before any generic PHP location. Set Nginx FastCGI pass in plugin settings.',
+			sprintf( 'location = %s {', $target ),
+			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
+			sprintf( '    return 301 %s/;', $target ),
+			'}',
+			sprintf( 'location = %s/ {', $target ),
+			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
+			'    include fastcgi_params;',
+			sprintf( '    fastcgi_param SCRIPT_FILENAME %s/wp-admin/index.php;', $root ),
+			sprintf( '    fastcgi_param SCRIPT_NAME %s/index.php;', $sourcePrefix ),
+			sprintf( '    fastcgi_param PHP_SELF %s/index.php;', $sourcePrefix ),
+			sprintf( '    fastcgi_param DOCUMENT_ROOT %s;', $root ),
+			sprintf( '    fastcgi_pass %s;', $pass ),
+			'}',
+			sprintf( 'location ~ ^%s/(?<hwp_admin_script>[A-Za-z0-9_./-]+\\.php)$ {', $targetPattern ),
+			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
+			'    if ($hwp_admin_script ~ "\\.\\.") { return 404; }',
+			sprintf( '    if (!-f %s/wp-admin/$hwp_admin_script) { return 404; }', $root ),
+			'    include fastcgi_params;',
+			sprintf( '    fastcgi_param SCRIPT_FILENAME %s/wp-admin/$hwp_admin_script;', $root ),
+			sprintf( '    fastcgi_param SCRIPT_NAME %s/$hwp_admin_script;', $sourcePrefix ),
+			sprintf( '    fastcgi_param PHP_SELF %s/$hwp_admin_script;', $sourcePrefix ),
+			sprintf( '    fastcgi_param DOCUMENT_ROOT %s;', $root ),
+			sprintf( '    fastcgi_pass %s;', $pass ),
+			'}',
+			sprintf( 'location %s/ {', $target ),
+			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
+			sprintf( '    alias %s/wp-admin/;', $root ),
+			'    try_files $uri $uri/ =404;',
+			'}',
+		);
+
+		return $lines;
 	}
 
 
