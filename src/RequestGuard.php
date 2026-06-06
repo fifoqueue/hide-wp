@@ -45,6 +45,10 @@ final readonly class RequestGuard {
 		}
 
 		if ( $this->shouldServeAdminAlias( $path ) ) {
+			if ( $this->isAlreadyExecutingAdminAliasTarget( $path ) ) {
+				return;
+			}
+
 			$this->serveAdminAlias( $path );
 		}
 
@@ -77,9 +81,7 @@ final readonly class RequestGuard {
 	}
 
 	private function serveAdminAlias( string $path ): never {
-		$aliasPath = $this->mapper->targetPath( 'admin' );
-		$relative  = ltrim( substr( $this->normalizePath( $path ), strlen( untrailingslashit( $this->normalizePath( $aliasPath ) ) ) ), '/' );
-		$relative  = '' === $relative ? 'index.php' : $relative;
+		$relative = $this->adminAliasRelativePath( $path );
 
 		if ( ! $this->isSafeAdminRelativePath( $relative ) ) {
 			$this->serveThemeNotFound();
@@ -105,6 +107,52 @@ final readonly class RequestGuard {
 
 		require $target;
 		exit;
+	}
+
+
+	private function adminAliasRelativePath( string $path ): string {
+		$aliasPath = $this->mapper->targetPath( 'admin' );
+		$relative  = ltrim( substr( $this->normalizePath( $path ), strlen( untrailingslashit( $this->normalizePath( $aliasPath ) ) ) ), '/' );
+
+		return '' === $relative ? 'index.php' : $relative;
+	}
+
+	private function isAlreadyExecutingAdminAliasTarget( string $path ): bool {
+		$relative = $this->adminAliasRelativePath( $path );
+		if ( ! $this->isSafeAdminRelativePath( $relative ) ) {
+			return false;
+		}
+
+		$target     = ABSPATH . 'wp-admin/' . $relative;
+		$targetReal = realpath( $target );
+		$script     = isset( $_SERVER['SCRIPT_FILENAME'] ) && is_string( $_SERVER['SCRIPT_FILENAME'] )
+			? wp_unslash( $_SERVER['SCRIPT_FILENAME'] )
+			: '';
+		$scriptReal = '' !== $script ? realpath( $script ) : false;
+
+		if ( false !== $targetReal && false !== $scriptReal && $this->sameFilesystemPath( $targetReal, $scriptReal ) ) {
+			return true;
+		}
+
+		$sourcePath = $this->mapper->sourcePath( 'admin' ) . '/' . $relative;
+		foreach ( array( 'SCRIPT_NAME', 'PHP_SELF' ) as $key ) {
+			$value = isset( $_SERVER[ $key ] ) && is_string( $_SERVER[ $key ] )
+				? wp_unslash( $_SERVER[ $key ] )
+				: '';
+
+			if ( '' !== $value && $this->isExactPath( $value, $sourcePath ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private function sameFilesystemPath( string $left, string $right ): bool {
+		$left  = rtrim( str_replace( '\\', '/', $left ), '/' );
+		$right = rtrim( str_replace( '\\', '/', $right ), '/' );
+
+		return 0 === strcasecmp( $left, $right );
 	}
 
 	private function isSafeAdminRelativePath( string $relative ): bool {
