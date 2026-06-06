@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.21
+Stable tag: 0.1.22
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,16 +38,16 @@ Path hiding is not an authentication or authorization boundary. Keep WordPress, 
 
 1. Install and activate the plugin.
 2. Open Settings > Hide WP Surface.
-3. Save the desired paths.
-4. Verify the login path. The original wp-login.php remains available until this check passes.
-5. Back up the web server configuration.
-6. Replace any older Hide WP Surface block, then install the generated Apache or Nginx block exactly where the settings page instructs.
-7. Reload Nginx when applicable.
+3. Save the desired paths and integration options.
+4. Back up the web server configuration.
+5. Replace any older Hide WP Surface block, then install the generated Apache or Nginx block exactly where the settings page instructs.
+6. Reload Nginx when applicable.
+7. Verify the login path. The original wp-login.php remains available until this check passes.
 8. Select Verify and Enable for wp-admin, wp-content, and wp-includes aliases.
 
 The plugin does not edit .htaccess, Nginx configuration, or virtual host files. Server configuration is an infrastructure boundary and must remain under the operator's control.
 
-The generated Nginx block uses the rewrite module. Do not deploy it on an upstream Nginx release affected by CVE-2026-9256.
+The generated Nginx block uses the rewrite module. Do not deploy it on an upstream Nginx release affected by CVE-2026-9256. The login alias is rewritten directly to wp-login.php so login, SSO, and OIDC plugins run through the native WordPress login bootstrap.
 
 
 == Automatic Updates ==
@@ -87,6 +87,12 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.22 =
+* Changed generated login alias rules to rewrite /login directly to wp-login.php with the internal alias flag, so OIDC/login plugins see the native WordPress login bootstrap instead of a late PHP include.
+* Fixed compatibility with plugins such as Authorizer that disable the native WordPress login form by avoiding the fallback login loader when the request already came through a verified alias rewrite.
+* Preserved the standard rewrite/FastCGI compatibility split for Nginx wp-admin aliases while sharing the same alias key and token with the login rewrite.
+* Improved internal alias flag handling so verified alias rewrites can pass through original WordPress entry points without being mistaken for direct wp-login.php or wp-admin access.
 
 = 0.1.21 =
 * Changed the default Nginx wp-admin alias integration to a simpler rewrite mode that appends an internal alias flag and uses the site's normal PHP handler.

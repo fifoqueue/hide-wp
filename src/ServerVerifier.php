@@ -275,7 +275,7 @@ final readonly class ServerVerifier {
 			|| ! hash_equals( $token, $header ) ) {
 			return new WP_Error(
 				'login_route',
-				__( 'The custom login path did not reach WordPress. Install the generated server fallback or enable standard WordPress rewrites.', 'hide-wp' )
+				__( 'The custom login path did not reach wp-login.php through the generated alias rewrite. Replace the generated server block and reload the web server.', 'hide-wp' )
 			);
 		}
 

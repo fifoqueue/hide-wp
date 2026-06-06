@@ -6,7 +6,9 @@ namespace HideWp;
 
 defined( 'ABSPATH' ) || exit;
 
-final readonly class RequestGuard {
+final class RequestGuard {
+	private bool $hasAliasQueryFlag = false;
+
 	public function __construct(
 		private Settings $settings,
 		private PathMapper $mapper
@@ -38,6 +40,12 @@ final readonly class RequestGuard {
 			return;
 		}
 
+		$this->hasAliasQueryFlag = true;
+
+		if ( ! defined( 'HIDE_WP_ALIAS_REQUEST' ) ) {
+			define( 'HIDE_WP_ALIAS_REQUEST', true );
+		}
+
 		unset( $_GET[ $key ], $_REQUEST[ $key ] );
 		$queryString = $this->currentQueryString( array( $key ) );
 		$_SERVER['QUERY_STRING'] = $queryString;
@@ -59,13 +67,22 @@ final readonly class RequestGuard {
 		$path = $this->effectiveRequestPath();
 
 		if ( $this->settings->loginRequested() ) {
-			if ( $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) ) ) {
+			$isLoginAliasPath = $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) );
+			$isLoginSourcePath = $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'login' ) );
+
+			if ( $isLoginAliasPath || ( $this->hasAliasQueryFlag && $isLoginSourcePath ) ) {
 				$this->maybeServeLoginProbe();
+			}
+
+			if ( $isLoginAliasPath ) {
+				if ( $this->hasAliasQueryFlag ) {
+					return;
+				}
+
 				$this->serveLogin();
 			}
 
-			if ( $this->settings->loginEnabled()
-				&& $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'login' ) ) ) {
+			if ( $this->settings->loginEnabled() && $isLoginSourcePath && ! $this->hasAliasQueryFlag ) {
 				$this->serveThemeNotFound();
 			}
 		}
@@ -81,7 +98,7 @@ final readonly class RequestGuard {
 			$this->serveThemeNotFound();
 		}
 
-		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) ) {
+		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) && ! $this->hasAliasQueryFlag ) {
 			$this->serveThemeNotFound();
 		}
 	}
@@ -203,7 +220,7 @@ final readonly class RequestGuard {
 			? wp_unslash( $_GET['hide_wp_login_probe'] )
 			: '';
 
-		if ( 1 !== preg_match( '/\A[a-zA-Z0-9]{32,64}\z/D', $token ) ) {
+		if ( ! $this->hasAliasQueryFlag || 1 !== preg_match( '/\A[a-zA-Z0-9]{32,64}\z/D', $token ) ) {
 			return;
 		}
 

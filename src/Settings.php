@@ -243,6 +243,10 @@ final class Settings {
 	public function loginConfigurationHash(): string {
 		$data = array(
 			'login'   => $this->getSlug( 'login_slug' ),
+			'server'  => array(
+				'alias_query_key'   => $this->aliasQueryKey(),
+				'alias_query_token' => $this->aliasQueryToken(),
+			),
 			'siteurl' => (string) get_option( 'siteurl', '' ),
 			'home'    => (string) get_option( 'home', '' ),
 		);
@@ -436,7 +440,9 @@ final class Settings {
 		}
 
 		$loginChanged = $result['login_slug'] !== $current['login_slug']
-			|| $result['login_enabled'] !== $current['login_enabled'];
+			|| $result['login_enabled'] !== $current['login_enabled']
+			|| $result['alias_query_key'] !== $current['alias_query_key']
+			|| $result['alias_query_token'] !== $current['alias_query_token'];
 		$pathsChanged = $result['admin_slug'] !== $current['admin_slug']
 			|| $result['admin_enabled'] !== $current['admin_enabled']
 			|| $result['content_slug'] !== $current['content_slug']

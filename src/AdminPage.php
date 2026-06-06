@@ -234,7 +234,7 @@ final readonly class AdminPage {
 						<th scope="row"><label for="hide-wp-alias-query-key"><?php echo esc_html__( 'Alias query key', 'hide-wp' ); ?></label></th>
 						<td>
 							<input type="text" class="regular-text code" id="hide-wp-alias-query-key" name="<?php echo esc_attr( Settings::OPTION ); ?>[alias_query_key]" value="<?php echo esc_attr( (string) $options['alias_query_key'] ); ?>" placeholder="hidewp_surface_key">
-							<p class="description"><?php echo esc_html__( 'Used only by Standard rewrite mode as an internal rewrite flag. Use lowercase letters, numbers, and underscores.', 'hide-wp' ); ?></p>
+							<p class="description"><?php echo esc_html__( 'Used by the generated login rewrite and by Standard wp-admin rewrite mode as an internal alias flag. Use lowercase letters, numbers, and underscores.', 'hide-wp' ); ?></p>
 						</td>
 					</tr>
 					<tr>
@@ -245,7 +245,7 @@ final readonly class AdminPage {
 								<input type="checkbox" name="<?php echo esc_attr( Settings::OPTION ); ?>[alias_query_token_rotate]" value="1">
 								<?php echo esc_html__( 'Rotate token on save', 'hide-wp' ); ?>
 							</label>
-							<p class="description"><?php echo esc_html__( 'After changing the key or rotating the token, replace the generated Nginx block and run Verify and Enable again.', 'hide-wp' ); ?></p>
+							<p class="description"><?php echo esc_html__( 'After changing the key or rotating the token, replace the generated server block, verify the login path again, and run Verify and Enable for path aliases.', 'hide-wp' ); ?></p>
 						</td>
 					</tr>
 					<tr>

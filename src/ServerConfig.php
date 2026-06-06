@@ -15,18 +15,20 @@ final readonly class ServerConfig {
 		$marker   = str_replace( '\\', '/', Marker::path() );
 		$probe    = str_replace( '\\', '/', Marker::probePath() );
 		$recovery = str_replace( '\\', '/', Marker::recoveryPath() );
+		$key      = $this->settings->aliasQueryKey();
+		$token    = $this->settings->aliasQueryToken();
 
 		$lines = array(
 			'# BEGIN Hide WP Surface',
 			'<IfModule mod_rewrite.c>',
 			'RewriteEngine On',
 			'',
-			'# Login front controller fallback.',
-			'RewriteCond %{REQUEST_FILENAME} !-f',
-			'RewriteCond %{REQUEST_FILENAME} !-d',
+			'# Login alias. Rewrite directly to wp-login.php so login/OIDC plugins see the native login bootstrap.',
 			sprintf(
-				'RewriteRule ^%s/?$ index.php [END,QSA,NC]',
-				preg_quote( basename( $this->mapper->targetPath( 'login' ) ), '#' )
+				'RewriteRule ^%s/?$ wp-login.php?%s=%s [END,QSA,NC]',
+				preg_quote( basename( $this->mapper->targetPath( 'login' ) ), '#' ),
+				$key,
+				$token
 			),
 			'',
 			'# Internal aliases. Keep these rules before the standard WordPress block.',
@@ -85,17 +87,20 @@ final readonly class ServerConfig {
 		$recovery = $this->quoteNginx( str_replace( '\\', '/', Marker::recoveryPath() ) );
 		$blocked  = array_merge( array_column( $aliases, 'source' ), $this->absoluteDisclosurePaths() );
 		$sources  = implode( '|', array_map( static fn ( string $path ): string => preg_quote( $path, '~' ), $blocked ) );
-		$login    = preg_quote( $this->mapper->targetPath( 'login' ), '~' );
-		$sitePath = $this->mapper->parentPath( $this->mapper->sourcePath( 'login' ) );
-		$index    = $sitePath . '/index.php';
+		$login       = preg_quote( $this->mapper->targetPath( 'login' ), '~' );
+		$sourceLogin = $this->mapper->sourcePath( 'login' );
+		$key         = $this->settings->aliasQueryKey();
+		$token       = $this->settings->aliasQueryToken();
+		$sitePath    = $this->mapper->parentPath( $sourceLogin );
+		$index       = $sitePath . '/index.php';
 
 		$lines = array(
 			'# BEGIN Hide WP Surface',
 			'# Place this block directly inside the WordPress server {} block, before location / and PHP/static locations.',
 			'# Do not place it inside another location block.',
 			'',
-			'# Login front controller fallback.',
-			sprintf( 'rewrite ^%s/?$ %s$is_args$args last;', $login, $index ),
+			'# Login alias. Rewrite directly to wp-login.php so login/OIDC plugins see the native login bootstrap.',
+			sprintf( 'rewrite ^%s/?$ %s?%s=%s&$args last;', $login, $sourceLogin, $key, $token ),
 			'',
 			'# Internal aliases. The wp-admin alias supports standard rewrite mode and FastCGI compatibility mode.',
 			'# Place generated location blocks before generic PHP/static locations.',
