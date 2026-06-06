@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.2
+Stable tag: 0.1.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,6 +49,27 @@ The plugin does not edit .htaccess, Nginx configuration, or virtual host files. 
 
 The generated Nginx block uses the rewrite module. Do not deploy it on an upstream Nginx release affected by CVE-2026-9256.
 
+
+== Automatic Updates ==
+
+Hide WP Surface can check the public GitHub Releases API for updates from `fifoqueue/hide-wp-surface`. To publish an update with the included GitHub Actions workflow:
+
+1. Bump the `Version` header in `hide-wp.php`, `HIDE_WP_VERSION`, and the `Stable tag` in `readme.txt`.
+2. Add a changelog entry for the new version.
+3. Commit the change and push it to `main` or `master`.
+4. The workflow reads the plugin version, creates the matching tag such as `v0.1.4`, builds `hide-wp-master.zip`, and uploads it to the GitHub Release.
+5. If the matching version tag already exists, the workflow fails so an existing release is not overwritten accidentally.
+
+The updater prefers release assets named `hide-wp-surface.zip`, `hide-wp-master.zip`, or `hide-wp.zip`, and otherwise uses the first `.zip` release asset. Commits update WordPress only after the workflow creates a versioned GitHub Release with a ZIP asset.
+
+To use a fork or a different repository, define this before the plugin loads:
+
+`define( 'HIDE_WP_GITHUB_REPOSITORY', 'owner/repository' );`
+
+To disable GitHub update checks entirely:
+
+`define( 'HIDE_WP_DISABLE_GITHUB_UPDATER', true );`
+
 == Emergency Recovery ==
 
 For PHP-side recovery only, add the following to wp-config.php:
@@ -71,12 +92,28 @@ The plugin sends no telemetry and makes no external service requests. Verificati
 
 == Changelog ==
 
+= 0.1.4 =
+
+* Added a GitHub Actions workflow that validates plugin metadata, lints PHP files, builds a production ZIP, uploads workflow artifacts, and publishes the ZIP to tagged GitHub Releases.
+* Fixed protected original-path 404 rendering so the active theme receives a normal front-end 404 request instead of a stripped-down synthetic query.
+* Fixed admin bar visibility on protected original-path 404 responses for logged-in users who normally show the front-end admin bar.
+* Fixed generated Nginx alias rewrites to restart location matching instead of staying in the current location.
+* Fixed the admin alias root path so requests such as /control and /control/ route to wp-admin/index.php instead of falling through to a 404.
+
+= 0.1.3 =
+
+* Added GitHub Releases based update checks for custom plugin updates outside WordPress.org.
+* Added one-click update package support when a compatible ZIP asset is attached to the latest GitHub release.
+* Added plugin information modal details from the latest GitHub release notes.
+* Added update cache clearing after plugin upgrades.
+
 = 0.1.2 =
+
 * Added independent enable/disable controls for wp-admin, wp-content, and wp-includes server aliases.
-* Added per-alias server configuration generation, so Apache and Nginx rules are generated only for the selected aliases.
+* Added per-alias server configuration generation, so Apache and Nginx rules are generated only for selected aliases.
 * Added per-alias verification checks for selected server aliases.
 * Added status messaging to distinguish current verified paths from newly saved paths that still require verification.
-* Fixed an issue where saving path settings immediately disabled existing verified rewrite rules, causing aliased admin URLs to return 404 before the new server configuration was verified.
+* Fixed an issue where saving path settings immediately disabled existing verified rewrite rules.
 * Fixed live routing so the previously verified alias set remains active until the newly saved alias configuration passes verification.
 * Fixed original path blocking so only enabled and verified aliases are blocked.
 * Fixed auth cookie path handling to use the active verified admin alias instead of an unverified saved admin path.

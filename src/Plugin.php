@@ -66,6 +66,7 @@ final class Plugin {
 		( new RequestGuard( $settings, $mapper ) )->boot();
 		( new HtmlCleaner( $settings, $mapper ) )->boot();
 		$verifier->boot();
+		( new Updater() )->boot();
 
 		if ( is_admin() ) {
 			( new AdminPage( $settings, $mapper, new ServerConfig( $mapper ), $verifier, $cookies ) )->boot();

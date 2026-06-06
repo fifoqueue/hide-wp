@@ -1,0 +1,175 @@
+name: CI and Release
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Validate and package
+    runs-on: ubuntu-latest
+    outputs:
+      plugin_version: ${{ steps.metadata.outputs.plugin_version }}
+    env:
+      PLUGIN_DIR: hide-wp-master
+      ZIP_NAME: hide-wp-master.zip
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: none
+
+      - name: Validate version metadata
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          plugin_version="$(sed -n 's/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//p' hide-wp.php | head -n 1 | xargs)"
+          constant_version="$(sed -n "s/^define( 'HIDE_WP_VERSION', '\([^']*\)' );/\1/p" hide-wp.php | head -n 1 | xargs)"
+          stable_tag="$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n 1 | xargs)"
+
+          if [[ -z "${plugin_version}" ]]; then
+            echo "Could not read the plugin Version header." >&2
+            exit 1
+          fi
+
+          if [[ "${plugin_version}" != "${constant_version}" ]]; then
+            echo "Version header (${plugin_version}) does not match HIDE_WP_VERSION (${constant_version})." >&2
+            exit 1
+          fi
+
+          if [[ "${plugin_version}" != "${stable_tag}" ]]; then
+            echo "Version header (${plugin_version}) does not match readme Stable tag (${stable_tag})." >&2
+            exit 1
+          fi
+
+          if [[ ! "${plugin_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z]+)*$ ]]; then
+            echo "Plugin version (${plugin_version}) is not a valid release version for this workflow." >&2
+            exit 1
+          fi
+
+          echo "plugin_version=${plugin_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Lint PHP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . \
+            -path './.git' -prune -o \
+            -path './build' -prune -o \
+            -path './dist' -prune -o \
+            -name '*.php' -print0 | xargs -0 -n 1 php -l
+
+      - name: Extract release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ steps.metadata.outputs.plugin_version }}'
+          awk -v version="${version}" '
+            $0 == "= " version " =" { found = 1; next }
+            found && /^= [0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z]+)* =$/ { exit }
+            found { print }
+          ' readme.txt > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            printf 'Hide WP Surface %s\n' "${version}" > release-notes.md
+          fi
+
+      - name: Build release ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build dist
+          mkdir -p "build/${PLUGIN_DIR}" dist
+          rsync -a ./ "build/${PLUGIN_DIR}/" \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'build/' \
+            --exclude 'dist/' \
+            --exclude '.gitignore' \
+            --exclude '*.iml' \
+            --exclude '*.patch' \
+            --exclude 'release-notes.md' \
+            --exclude '.hide-wp-recovery' \
+            --exclude 'runtime/paths-enabled.php' \
+            --exclude 'runtime/paths-probe.php' \
+            --exclude 'runtime/paths-enabled.flag'
+
+          ( cd build && zip -r "../dist/${ZIP_NAME}" "${PLUGIN_DIR}" )
+          unzip -l "dist/${ZIP_NAME}" | grep -F "${PLUGIN_DIR}/hide-wp.php"
+          unzip -l "dist/${ZIP_NAME}" | grep -F "${PLUGIN_DIR}/readme.txt"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hide-wp-surface-package
+          path: |
+            dist/hide-wp-master.zip
+            release-notes.md
+          retention-days: 14
+
+  release:
+    name: Create version tag and GitHub release
+    runs-on: ubuntu-latest
+    needs: build
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository with tags
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download package artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: hide-wp-surface-package
+          path: release-dist
+
+      - name: Create version tag and GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN_VERSION: ${{ needs.build.outputs.plugin_version }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tag_name="v${PLUGIN_VERSION}"
+          zip_path='release-dist/dist/hide-wp-master.zip'
+          notes_path='release-dist/release-notes.md'
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
+            echo "Tag ${tag_name} already exists. Bump Version, HIDE_WP_VERSION, and Stable tag before pushing a new release." >&2
+            exit 1
+          fi
+
+          if gh release view "${tag_name}" >/dev/null 2>&1; then
+            echo "Release ${tag_name} already exists. Bump the plugin version before pushing a new release." >&2
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "${tag_name}" -m "Hide WP Surface ${PLUGIN_VERSION}" "${COMMIT_SHA}"
+          git push origin "${tag_name}"
+
+          gh release create "${tag_name}" "${zip_path}" \
+            --target "${COMMIT_SHA}" \
+            --title "Hide WP Surface ${PLUGIN_VERSION}" \
+            --notes-file "${notes_path}"

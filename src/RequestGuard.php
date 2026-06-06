@@ -80,13 +80,11 @@ final readonly class RequestGuard {
 		}
 
 		$this->maybeAddThemeNotFoundProbeHeader();
+		$this->prepareSyntheticNotFoundRequest();
 
 		remove_action( 'template_redirect', 'redirect_canonical' );
 		remove_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );
-
-		$_GET     = array();
-		$_POST    = array();
-		$_REQUEST = array();
+		add_filter( 'show_admin_bar', array( $this, 'showAdminBarForThemeNotFound' ), PHP_INT_MAX );
 
 		$forceNotFound = static function ( mixed $preempt, \WP_Query $query ): bool {
 			unset( $preempt );
@@ -99,20 +97,9 @@ final readonly class RequestGuard {
 		add_filter( 'pre_handle_404', $forceNotFound, PHP_INT_MAX, 2 );
 
 		try {
-			wp( array( 'post__in' => array( 0 ) ) );
+			wp();
 		} finally {
 			remove_filter( 'pre_handle_404', $forceNotFound, PHP_INT_MAX );
-		}
-
-		global $wp_query;
-		if ( $wp_query instanceof \WP_Query ) {
-			$wp_query->posts             = array();
-			$wp_query->post              = null;
-			$wp_query->post_count        = 0;
-			$wp_query->current_post      = -1;
-			$wp_query->queried_object    = null;
-			$wp_query->queried_object_id = 0;
-			$wp_query->set_404();
 		}
 
 		status_header( 404 );
@@ -121,6 +108,41 @@ final readonly class RequestGuard {
 
 		require ABSPATH . WPINC . '/template-loader.php';
 		exit;
+	}
+
+	public function showAdminBarForThemeNotFound( mixed $show ): bool {
+		if ( ! is_user_logged_in() ) {
+			return false;
+		}
+
+		$preference = get_user_option( 'show_admin_bar_front', get_current_user_id() );
+		if ( 'false' === $preference ) {
+			return false;
+		}
+
+		return true === $show || null === $show || '' === $show || false === $preference || 'true' === $preference;
+	}
+
+	private function prepareSyntheticNotFoundRequest(): void {
+		$sitePath = $this->mapper->parentPath( $this->mapper->sourcePath( 'login' ) );
+		$slug     = 'hide-wp-not-found-' . substr( hash( 'sha256', $this->requestPath() ), 0, 16 );
+		$path     = '/' . trim( trim( $sitePath, '/' ) . '/' . $slug, '/' );
+
+		$_GET     = array();
+		$_POST    = array();
+		$_REQUEST = array();
+
+		$_SERVER['REQUEST_URI'] = $path;
+		$_SERVER['QUERY_STRING'] = '';
+		$_SERVER['SCRIPT_NAME'] = $this->indexPath();
+		$_SERVER['PHP_SELF']    = $this->indexPath();
+		$GLOBALS['pagenow']     = 'index.php';
+	}
+
+	private function indexPath(): string {
+		$sitePath = $this->mapper->parentPath( $this->mapper->sourcePath( 'login' ) );
+
+		return '/' . trim( trim( $sitePath, '/' ) . '/index.php', '/' );
 	}
 
 	private function maybeAddThemeNotFoundProbeHeader(): void {

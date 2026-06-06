@@ -3,7 +3,7 @@
  * Plugin Name: Hide WP Surface
  * Plugin URI:  https://github.com/fifoqueue/hide-wp-surface
  * Description: Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases.
- * Version:     0.1.2
+ * Version:     0.1.4
  * Update URI:  https://github.com/fifoqueue/hide-wp-surface
  * Requires at least: 7.0
  * Requires PHP: 8.3
@@ -15,7 +15,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'HIDE_WP_VERSION', '0.1.2' );
+define( 'HIDE_WP_VERSION', '0.1.4' );
+define( 'HIDE_WP_BASENAME', plugin_basename( __FILE__ ) );
+if ( ! defined( 'HIDE_WP_GITHUB_REPOSITORY' ) ) {
+	define( 'HIDE_WP_GITHUB_REPOSITORY', 'fifoqueue/hide-wp-surface' );
+}
 define( 'HIDE_WP_FILE', __FILE__ );
 define( 'HIDE_WP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'HIDE_WP_URL', plugin_dir_url( __FILE__ ) );
@@ -63,6 +67,7 @@ require_once HIDE_WP_DIR . 'src/HtmlCleaner.php';
 require_once HIDE_WP_DIR . 'src/ServerConfig.php';
 require_once HIDE_WP_DIR . 'src/ServerVerifier.php';
 require_once HIDE_WP_DIR . 'src/AdminPage.php';
+require_once HIDE_WP_DIR . 'src/Updater.php';
 require_once HIDE_WP_DIR . 'src/Plugin.php';
 
 register_activation_hook( __FILE__, array( \HideWp\Plugin::class, 'activate' ) );

@@ -11,7 +11,7 @@ final readonly class ServerConfig {
 	}
 
 	public function apache(): string {
-		$aliases  = $this->relativeAliases();
+		$aliases  = $this->relativeAliasSpecs();
 		$marker   = str_replace( '\\', '/', Marker::path() );
 		$probe    = str_replace( '\\', '/', Marker::probePath() );
 		$recovery = str_replace( '\\', '/', Marker::recoveryPath() );
@@ -32,12 +32,28 @@ final readonly class ServerConfig {
 			'# Internal aliases. Keep these rules before the standard WordPress block.',
 		);
 
-		foreach ( $aliases as $source => $target ) {
+		foreach ( $aliases as $alias ) {
+			$source = $alias['source'];
+			$target = $alias['target'];
+
+			if ( 'admin' === $alias['type'] ) {
+				$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
+				$lines[] = sprintf( 'RewriteCond "%s" -f [OR]', $marker );
+				$lines[] = sprintf( 'RewriteCond "%s" -f', $probe );
+				$lines[] = sprintf(
+					'RewriteRule ^%1$s/?$ %2$s/index.php [END,QSA,NC]',
+					preg_quote( $target, '#' ),
+					$source
+				);
+			}
+
 			$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
 			$lines[] = sprintf( 'RewriteCond "%s" -f [OR]', $marker );
 			$lines[] = sprintf( 'RewriteCond "%s" -f', $probe );
 			$lines[] = sprintf(
-				'RewriteRule ^%1$s(?:/(.*))?/?$ %2$s/$1 [END,QSA,NC]',
+				'admin' === $alias['type']
+					? 'RewriteRule ^%1$s/(.+)$ %2$s/$1 [END,QSA,NC]'
+					: 'RewriteRule ^%1$s(?:/(.*))?/?$ %2$s/$1 [END,QSA,NC]',
 				preg_quote( $target, '#' ),
 				$source
 			);
@@ -45,10 +61,10 @@ final readonly class ServerConfig {
 
 		$lines[] = '';
 		$lines[] = '# Send original paths to WordPress so the active theme renders its 404 template.';
-		foreach ( array_keys( $aliases ) as $source ) {
+		foreach ( $aliases as $alias ) {
 			$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 			$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-			$lines[] = sprintf( 'RewriteRule ^%s(?:/.*)?$ index.php [END,QSA,NC]', preg_quote( $source, '#' ) );
+			$lines[] = sprintf( 'RewriteRule ^%s(?:/.*)?$ index.php [END,QSA,NC]', preg_quote( $alias['source'], '#' ) );
 		}
 
 		$lines[] = '';
@@ -64,11 +80,11 @@ final readonly class ServerConfig {
 	}
 
 	public function nginx(): string {
-		$aliases  = $this->absoluteAliases();
+		$aliases  = $this->absoluteAliasSpecs();
 		$marker   = $this->quoteNginx( str_replace( '\\', '/', Marker::path() ) );
 		$probe    = $this->quoteNginx( str_replace( '\\', '/', Marker::probePath() ) );
 		$recovery = $this->quoteNginx( str_replace( '\\', '/', Marker::recoveryPath() ) );
-		$blocked  = array_merge( array_keys( $aliases ), $this->absoluteDisclosurePaths() );
+		$blocked  = array_merge( array_column( $aliases, 'source' ), $this->absoluteDisclosurePaths() );
 		$sources  = implode( '|', array_map( static fn ( string $path ): string => preg_quote( $path, '~' ), $blocked ) );
 		$login    = preg_quote( $this->mapper->targetPath( 'login' ), '~' );
 		$sitePath = $this->mapper->parentPath( $this->mapper->sourcePath( 'login' ) );
@@ -95,13 +111,17 @@ final readonly class ServerConfig {
 			'# Internal aliases.',
 		);
 
-		foreach ( $aliases as $source => $target ) {
+		foreach ( $aliases as $alias ) {
+			$source = $alias['source'];
+			$target = preg_quote( $alias['target'], '~' );
+
 			$lines[] = 'if ($hwp_aliases_enabled = 1) {';
-			$lines[] = sprintf(
-				'    rewrite ^%1$s(?:/(.*))?/?$ %2$s/$1 break;',
-				preg_quote( $target, '~' ),
-				$source
-			);
+			if ( 'admin' === $alias['type'] ) {
+				$lines[] = sprintf( '    rewrite ^%1$s/?$ %2$s/index.php last;', $target, $source );
+				$lines[] = sprintf( '    rewrite ^%1$s/(.+)$ %2$s/$1 last;', $target, $source );
+			} else {
+				$lines[] = sprintf( '    rewrite ^%1$s(?:/(.*))?/?$ %2$s/$1 last;', $target, $source );
+			}
 			$lines[] = '}';
 		}
 
@@ -111,24 +131,32 @@ final readonly class ServerConfig {
 	}
 
 	/**
-	 * @return array<string, string>
+	 * @return list<array{type: string, source: string, target: string}>
 	 */
-	private function relativeAliases(): array {
+	private function relativeAliasSpecs(): array {
 		$aliases = array();
 		foreach ( $this->mapper->requestedAliasTypes() as $type ) {
-			$aliases[ basename( $this->mapper->sourcePath( $type ) ) ] = basename( $this->mapper->targetPath( $type ) );
+			$aliases[] = array(
+				'type'   => $type,
+				'source' => basename( $this->mapper->sourcePath( $type ) ),
+				'target' => basename( $this->mapper->targetPath( $type ) ),
+			);
 		}
 
 		return $aliases;
 	}
 
 	/**
-	 * @return array<string, string>
+	 * @return list<array{type: string, source: string, target: string}>
 	 */
-	private function absoluteAliases(): array {
+	private function absoluteAliasSpecs(): array {
 		$aliases = array();
 		foreach ( $this->mapper->requestedAliasTypes() as $type ) {
-			$aliases[ $this->mapper->sourcePath( $type ) ] = $this->mapper->targetPath( $type );
+			$aliases[] = array(
+				'type'   => $type,
+				'source' => $this->mapper->sourcePath( $type ),
+				'target' => $this->mapper->targetPath( $type ),
+			);
 		}
 
 		return $aliases;
