@@ -173,10 +173,12 @@ final readonly class ServerConfig {
 			sprintf( '    fastcgi_param DOCUMENT_ROOT %s;', $root ),
 			sprintf( '    fastcgi_pass %s;', $pass ),
 			'}',
-			sprintf( 'location %s/ {', $target ),
+			'# wp-admin alias: serve admin static assets directly from wp-admin.',
+			'# Keep this before generic static locations; do not use try_files with the alias URI.',
+			sprintf( 'location ~ ^%s/(?<hwp_admin_asset>[A-Za-z0-9_./-]+)$ {', $targetPattern ),
 			sprintf( '    if (-f "%s") { return 404; }', $recovery ),
-			sprintf( '    alias %s/wp-admin/;', $root ),
-			'    try_files $uri $uri/ =404;',
+			'    if ($hwp_admin_asset ~ "\.\.") { return 404; }',
+			sprintf( '    alias %s/wp-admin/$hwp_admin_asset;', $root ),
 			'}',
 		);
 

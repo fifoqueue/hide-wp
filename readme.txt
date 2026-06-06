@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.18
+Stable tag: 0.1.19
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -59,7 +59,7 @@ To publish an update with the included GitHub Actions workflow:
 1. Bump the `Version` header in `hide-wp.php`, `HIDE_WP_VERSION`, and the `Stable tag` in `readme.txt`.
 2. Add a changelog entry for the new version.
 3. Commit the change and push it to `main` or `master`.
-4. The workflow reads the plugin version, creates the matching tag such as `v0.1.18`, builds `hide-wp-surface.zip`, and uploads it to the GitHub Release.
+4. The workflow reads the plugin version, creates the matching tag such as `v0.1.19`, builds `hide-wp-surface.zip`, and uploads it to the GitHub Release.
 5. If the matching version tag already exists, the workflow fails so an existing release is not overwritten accidentally.
 
 The updater prefers release assets named `hide-wp-surface.zip`, `hide-wp-master.zip`, or `hide-wp.zip`, and otherwise uses the first `.zip` release asset. Commits update WordPress only after the workflow creates a versioned GitHub Release with a ZIP asset.
@@ -87,6 +87,10 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.19 =
+* Fixed Nginx wp-admin aliases for static admin assets such as js, css, images, fonts, and source maps.
+* Replaced the generic wp-admin alias static location with a capture-based alias location so /control/js/... maps directly to /wp-admin/js/... instead of checking the wrong /control/... filesystem path.
 
 = 0.1.18 =
 * Changed generated Nginx wp-admin aliases to execute admin PHP files directly through FastCGI, avoiding theme 404s, broken load-styles.php/load-scripts.php, and database-upgrade-screen side effects caused by front-controller routing.
