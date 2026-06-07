@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.25
+Stable tag: 0.1.26
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,11 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.26 =
+* Skipped final `WP_HTML_Tag_Processor` rewriting on cacheable `GET` and `HEAD` requests when WordPress page caching is enabled.
+* Preserved final HTML rewriting for uncached requests, including `POST` requests and responses marked with `DONOTCACHEPAGE`.
+* Kept URL generation filters and fingerprint cleanup active so page-cache compatibility does not disable the rest of the plugin.
 
 = 0.1.25 =
 * Prevented custom login responses from being stored by page-cache plugins through the widely supported `DONOTCACHEPAGE` signal and no-cache response headers.

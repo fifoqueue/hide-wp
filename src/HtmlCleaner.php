@@ -135,7 +135,23 @@ final readonly class HtmlCleaner {
 			? strtoupper( $_SERVER['REQUEST_METHOD'] )
 			: 'GET';
 
+		if ( $this->pageCacheMayStoreResponse( $method ) ) {
+			return false;
+		}
+
 		return in_array( $method, array( 'GET', 'HEAD', 'POST' ), true );
+	}
+
+	private function pageCacheMayStoreResponse( string $method ): bool {
+		if ( ! in_array( $method, array( 'GET', 'HEAD' ), true ) ) {
+			return false;
+		}
+
+		if ( ! defined( 'WP_CACHE' ) || ! WP_CACHE ) {
+			return false;
+		}
+
+		return ! defined( 'DONOTCACHEPAGE' ) || ! DONOTCACHEPAGE;
 	}
 
 	private function isHtmlResponse( string $html ): bool {
