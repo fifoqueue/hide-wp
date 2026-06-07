@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.26
+Stable tag: 0.1.27
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,10 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.27 =
+* Kept final HTML path rewriting enabled for administrator responses even when a page-cache plugin defines `WP_CACHE`.
+* Restored aliased `load-scripts.php` and `load-styles.php` URLs on administrator pages while continuing to skip final rewriting for cacheable front-end responses.
 
 = 0.1.26 =
 * Skipped final `WP_HTML_Tag_Processor` rewriting on cacheable `GET` and `HEAD` requests when WordPress page caching is enabled.

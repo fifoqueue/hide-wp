@@ -147,6 +147,10 @@ final readonly class HtmlCleaner {
 			return false;
 		}
 
+		if ( is_admin() ) {
+			return false;
+		}
+
 		if ( ! defined( 'WP_CACHE' ) || ! WP_CACHE ) {
 			return false;
 		}
