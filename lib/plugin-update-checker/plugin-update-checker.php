@@ -68,6 +68,12 @@ final class GitHubUpdateChecker {
 		$this->assetPattern = $pattern;
 	}
 
+	public function checkForUpdates(): ?stdClass {
+		delete_site_transient( $this->cacheKey() );
+
+		return $this->buildUpdateObject();
+	}
+
 	/**
 	 * @param mixed $transient
 	 * @return mixed
@@ -84,6 +90,9 @@ final class GitHubUpdateChecker {
 
 		$installed = is_string( $transient->checked[ $this->basename ] ?? null ) ? $transient->checked[ $this->basename ] : '';
 		if ( '' !== $installed && version_compare( $update->new_version, $installed, '<=' ) ) {
+			if ( isset( $transient->response ) && is_array( $transient->response ) ) {
+				unset( $transient->response[ $this->basename ] );
+			}
 			if ( ! isset( $transient->no_update ) || ! is_array( $transient->no_update ) ) {
 				$transient->no_update = array();
 			}
@@ -92,6 +101,9 @@ final class GitHubUpdateChecker {
 			return $transient;
 		}
 
+		if ( isset( $transient->no_update ) && is_array( $transient->no_update ) ) {
+			unset( $transient->no_update[ $this->basename ] );
+		}
 		if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
 			$transient->response = array();
 		}

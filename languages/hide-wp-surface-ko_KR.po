@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: Hide WP Surface 0.1.27\n"
+"Project-Id-Version: Hide WP Surface 0.1.28\n"
 "Report-Msgid-Bugs-To: https://github.com/fifoqueue/hide-wp-surface/issues\n"
 "Last-Translator: fifoqueue\n"
 "Language-Team: Korean\n"

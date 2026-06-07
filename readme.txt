@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.27
+Stable tag: 0.1.28
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,10 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
 
 == Changelog ==
+
+= 0.1.28 =
+* Forced a fresh GitHub release check before `wp plugin update` so WP-CLI does not rely on Plugin Update Checker's normal 12-hour schedule.
+* Added the same forced-check API to the bundled updater fallback for installations without Composer dependencies.
 
 = 0.1.27 =
 * Kept final HTML path rewriting enabled for administrator responses even when a page-cache plugin defines `WP_CACHE`.

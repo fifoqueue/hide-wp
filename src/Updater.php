@@ -30,6 +30,8 @@ final class Updater {
 			return;
 		}
 
+		$this->registerCliUpdateCheck();
+
 		$checker = PucFactory::buildUpdateChecker(
 			'https://github.com/' . $repository . '/',
 			HIDE_WP_FILE,
@@ -51,6 +53,27 @@ final class Updater {
 		}
 
 		self::$checker = is_object( $checker ) ? $checker : null;
+	}
+
+	public function checkForCliUpdate( mixed $input = null ): mixed {
+		if ( is_object( self::$checker ) && method_exists( self::$checker, 'checkForUpdates' ) ) {
+			self::$checker->checkForUpdates();
+		}
+
+		return $input;
+	}
+
+	private function registerCliUpdateCheck(): void {
+		if (
+			! defined( 'WP_CLI' )
+			|| ! WP_CLI
+			|| ! class_exists( '\WP_CLI', false )
+			|| ! method_exists( '\WP_CLI', 'add_hook' )
+		) {
+			return;
+		}
+
+		\WP_CLI::add_hook( 'before_invoke:plugin update', array( $this, 'checkForCliUpdate' ) );
 	}
 
 	private function loadPluginUpdateChecker(): bool {
