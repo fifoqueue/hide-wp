@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.28
+Stable tag: 0.1.29
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -84,9 +84,16 @@ The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, medi
 
 == Privacy ==
 
-The plugin sends no telemetry and makes no external service requests. Verification requests are loopback requests to the configured WordPress origin.
+The plugin sends no telemetry. Route verification requests are loopback requests to the configured WordPress origin. When GitHub update checks are enabled, the plugin contacts the configured GitHub repository and GitHub API to retrieve release metadata and update packages.
 
 == Changelog ==
+
+= 0.1.29 =
+* Made generated Nginx aliases follow the activation and probe markers so disabling path aliases stops the aliases as well as original-path blocking.
+* Generated login aliases only when custom login is enabled and made Apache and Nginx login aliases honor the emergency recovery file.
+* Migrated installations without a saved alias token to one persistent token instead of generating a different default during each settings read.
+* Corrected the privacy documentation to disclose GitHub release checks when automatic updates are enabled.
+* Added a Composer lock file so release builds package a reproducible Plugin Update Checker version.
 
 = 0.1.28 =
 * Forced a fresh GitHub release check before `wp plugin update` so WP-CLI does not rely on Plugin Update Checker's normal 12-hour schedule.

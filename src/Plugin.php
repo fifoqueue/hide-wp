@@ -57,6 +57,7 @@ final class Plugin {
 
 	public function boot(): void {
 		$settings = new Settings();
+		$settings->aliasQueryToken();
 		$mapper   = new PathMapper( $settings );
 		$verifier = new ServerVerifier( $settings, $mapper );
 		$cookies  = new AuthCookieBridge( $settings, $mapper );

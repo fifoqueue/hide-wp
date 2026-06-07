@@ -495,7 +495,7 @@ final class Settings {
 			return HIDE_WP_ALIAS_QUERY_TOKEN;
 		}
 
-		return self::generateAliasQueryToken();
+		return '';
 	}
 
 	private static function generateAliasQueryToken(): string {
