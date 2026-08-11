@@ -19,7 +19,6 @@ final readonly class UrlRewriter {
 				'content_url',
 				'icon_dir_uri',
 				'includes_url',
-				'login_url',
 				'logout_url',
 				'lostpassword_url',
 				'network_admin_url',
@@ -43,6 +42,7 @@ final readonly class UrlRewriter {
 			add_filter( $hook, array( $this, 'rewrite' ), PHP_INT_MAX, 4 );
 		}
 
+		add_filter( 'login_url', array( $this, 'rewriteLoginUrl' ), PHP_INT_MAX, 3 );
 		add_filter( 'wp_get_attachment_image_src', array( $this, 'rewriteImageSource' ), PHP_INT_MAX, 4 );
 		add_filter( 'wp_calculate_image_srcset', array( $this, 'rewriteSrcsetSources' ), PHP_INT_MAX, 5 );
 		add_filter( 'wp_get_attachment_image_attributes', array( $this, 'rewriteImageAttributes' ), PHP_INT_MAX, 3 );
@@ -62,8 +62,57 @@ final readonly class UrlRewriter {
 		return is_string( $url ) ? $this->mapper->rewriteUrl( $url ) : $url;
 	}
 
+	public function rewriteLoginUrl( mixed $url, mixed $redirect = '', mixed $forceReauth = false ): mixed {
+		unset( $forceReauth );
+
+		if ( ! is_string( $url ) ) {
+			return $url;
+		}
+
+		$url = $this->mapper->rewriteUrl( $url );
+		if ( ! is_string( $redirect ) || ! $this->isCurrentLoginAliasUrl( $redirect, $url ) ) {
+			return $url;
+		}
+
+		// Authorizer treats a public login alias as an embedded login form and
+		// passes the current page back through wp_login_url(). Keeping that
+		// self-reference sends a successful OIDC login to the callback URL again,
+		// where its one-time authorization code can no longer be exchanged.
+		return remove_query_arg( 'redirect_to', $url );
+	}
+
 	public function rewriteEmbeddedPaths( mixed $value, mixed ...$unused ): mixed {
 		return is_string( $value ) ? $this->mapper->rewriteEmbeddedPaths( $value ) : $value;
+	}
+
+	private function isCurrentLoginAliasUrl( string $url, string $loginUrl ): bool {
+		$requestUri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
+			? wp_unslash( $_SERVER['REQUEST_URI'] )
+			: '';
+		$requestPath = wp_parse_url( $requestUri, PHP_URL_PATH );
+		$urlPath     = wp_parse_url( $url, PHP_URL_PATH );
+		$loginPath   = wp_parse_url( $loginUrl, PHP_URL_PATH );
+		$aliasPath   = $this->mapper->targetPath( 'login' );
+
+		if ( ! is_string( $requestPath ) || ! is_string( $urlPath ) || ! is_string( $loginPath ) ) {
+			return false;
+		}
+
+		if (
+			0 !== strcasecmp( untrailingslashit( $requestPath ), untrailingslashit( $aliasPath ) )
+			|| 0 !== strcasecmp( untrailingslashit( $urlPath ), untrailingslashit( $aliasPath ) )
+			|| 0 !== strcasecmp( untrailingslashit( $loginPath ), untrailingslashit( $aliasPath ) )
+		) {
+			return false;
+		}
+
+		$requestQuery = wp_parse_url( $requestUri, PHP_URL_QUERY );
+		$urlQuery     = wp_parse_url( $url, PHP_URL_QUERY );
+
+		return hash_equals(
+			is_string( $requestQuery ) ? $requestQuery : '',
+			is_string( $urlQuery ) ? $urlQuery : ''
+		);
 	}
 
 	/**
