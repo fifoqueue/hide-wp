@@ -11,6 +11,8 @@ final readonly class UrlRewriter {
 	}
 
 	public function boot(): void {
+		$this->disableAdminAssetConcatenation();
+
 		foreach (
 			array(
 				'admin_url',
@@ -48,6 +50,12 @@ final readonly class UrlRewriter {
 		add_filter( 'site_url', array( $this, 'rewrite' ), PHP_INT_MAX, 4 );
 		add_filter( 'network_site_url', array( $this, 'rewrite' ), PHP_INT_MAX, 3 );
 		add_filter( 'wp_redirect', array( $this, 'rewrite' ), PHP_INT_MAX, 2 );
+	}
+
+	private function disableAdminAssetConcatenation(): void {
+		if ( in_array( 'admin', $this->mapper->activeAliasTypes(), true ) ) {
+			$GLOBALS['concatenate_scripts'] = false;
+		}
 	}
 
 	public function rewrite( mixed $url, mixed ...$unused ): mixed {

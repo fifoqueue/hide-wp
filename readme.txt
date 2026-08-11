@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -85,10 +85,17 @@ The plugin sends no telemetry and performs no third-party update checks. Route v
 
 == Upgrade Notice ==
 
+= 0.2.1 =
+Fixes admin CSS and JavaScript loading through a verified wp-admin alias and keeps external login providers on the verified login alias.
+
 = 0.2.0 =
 This security update disables markers created by older releases. After updating, replace the generated server block and verify the login and path aliases again from the standard wp-admin path. The runtime GitHub updater and Nginx FastCGI compatibility mode were removed.
 
 == Changelog ==
+
+= 0.2.1 =
+* Disabled WordPress admin asset concatenation while the verified wp-admin alias is active so styles and scripts use individually filtered alias URLs instead of hard-coded load-styles.php and load-scripts.php paths.
+* Preserved the public login alias in REQUEST_URI while retaining the native wp-login.php script context, keeping Authorizer and other direct URL builders on the verified alias.
 
 = 0.2.0 =
 * Bound activation and probe markers to the exact configuration hash so an old verified marker cannot enable changed paths or login settings.

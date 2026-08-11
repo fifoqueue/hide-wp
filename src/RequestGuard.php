@@ -113,9 +113,9 @@ final class RequestGuard {
 			&& $this->settings->loginRequested()
 			&& $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) )
 		) {
-			$path                   = $this->mapper->sourcePath( 'login' );
-			$_SERVER['SCRIPT_NAME'] = $path;
-			$_SERVER['PHP_SELF']    = $path;
+			$sourcePath             = $this->mapper->sourcePath( 'login' );
+			$_SERVER['SCRIPT_NAME'] = $sourcePath;
+			$_SERVER['PHP_SELF']    = $sourcePath;
 			$GLOBALS['pagenow']     = 'wp-login.php';
 		}
 
