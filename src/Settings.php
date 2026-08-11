@@ -7,9 +7,13 @@ namespace HideWp;
 defined( 'ABSPATH' ) || exit;
 
 final class Settings {
+	private const ROUTING_PROTOCOL = 2;
+
 	public const OPTION = 'hide_wp_settings';
 	public const LOGIN_VERIFIED_OPTION = 'hide_wp_login_verified_hash';
 	public const PATH_STATE_OPTION = 'hide_wp_path_state';
+	public const ALIAS_TOKEN_OPTION = 'hide_wp_alias_token';
+	public const DATA_MIGRATION_OPTION = 'hide_wp_data_migration_version';
 	public const PATH_TYPES = array( 'admin', 'content', 'includes' );
 
 	/**
@@ -29,13 +33,7 @@ final class Settings {
 			'remove_discovery_links' => true,
 			'strip_core_version'     => true,
 			'generic_login_errors'   => true,
-			'nginx_admin_alias_mode' => 'rewrite',
-			'nginx_fastcgi_pass'     => '',
 			'alias_query_key'        => 'hidewp_surface_key',
-			'alias_query_token'      => self::defaultAliasQueryToken(),
-			'github_updates_enabled' => true,
-			'github_repository'      => self::defaultGithubRepository(),
-			'github_token'           => '',
 		);
 	}
 
@@ -45,7 +43,10 @@ final class Settings {
 	public function all(): array {
 		$value = get_option( self::OPTION, array() );
 
-		return array_merge( self::defaults(), is_array( $value ) ? $value : array() );
+		$settings = array_merge( self::defaults(), is_array( $value ) ? $value : array() );
+		$settings['alias_query_token'] = $this->aliasQueryToken();
+
+		return $settings;
 	}
 
 	public function getString( string $key ): string {
@@ -75,10 +76,57 @@ final class Settings {
 		return true === ( $this->all()[ $key ] ?? false );
 	}
 
-	public function nginxAdminAliasMode(): string {
-		$mode = $this->getString( 'nginx_admin_alias_mode' );
+	public function removeRetiredData(): void {
+		$value = get_option( self::OPTION, array() );
+		$value = is_array( $value ) ? $value : array();
 
-		return in_array( $mode, array( 'rewrite', 'fastcgi' ), true ) ? $mode : 'rewrite';
+		$repository = is_string( $value['github_repository'] ?? null ) ? $value['github_repository'] : '';
+		$changed    = false;
+		foreach ( array( 'alias_query_token', 'github_updates_enabled', 'github_repository', 'github_token' ) as $key ) {
+			if ( array_key_exists( $key, $value ) ) {
+				unset( $value[ $key ] );
+				$changed = true;
+			}
+		}
+
+		if ( $changed ) {
+			update_option( self::OPTION, $value, false );
+		}
+
+		if ( $changed || 2 > (int) get_option( self::DATA_MIGRATION_OPTION, 0 ) ) {
+			// Remove any package URL cached by the retired unsigned updater, even
+			// when its settings were never explicitly saved in the database.
+			delete_site_transient( 'update_plugins' );
+			delete_site_transient( 'hide_wp_github_latest_release' );
+
+			$repositories = array( 'fifoqueue/hide-wp-surface' );
+			if ( '' !== $repository ) {
+				$repositories[] = $repository;
+			}
+			if ( defined( 'HIDE_WP_GITHUB_REPOSITORY' ) && is_string( HIDE_WP_GITHUB_REPOSITORY ) ) {
+				$repositories[] = HIDE_WP_GITHUB_REPOSITORY;
+			}
+
+			foreach ( array_unique( $repositories ) as $retiredRepository ) {
+				if ( 1 !== preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/D', $retiredRepository ) ) {
+					continue;
+				}
+
+				$suffix = substr( hash( 'sha256', strtolower( $retiredRepository ) ), 0, 12 );
+				delete_site_transient( 'hide_wp_github_latest_release_' . $suffix );
+				delete_site_transient( 'hide_wp_puc_latest_' . $suffix );
+			}
+
+			update_option( self::DATA_MIGRATION_OPTION, 2, false );
+		}
+	}
+
+	public function removeRetiredUpdateOffer( mixed $transient ): mixed {
+		if ( is_object( $transient ) && isset( $transient->response ) && is_array( $transient->response ) ) {
+			unset( $transient->response[ HIDE_WP_BASENAME ] );
+		}
+
+		return $transient;
 	}
 
 	public function aliasQueryKey(): string {
@@ -88,17 +136,47 @@ final class Settings {
 	}
 
 	public function aliasQueryToken(): string {
-		$token = $this->getString( 'alias_query_token' );
-		if ( '' !== $token && $this->isValidAliasQueryToken( $token ) ) {
+		$token = get_option( self::ALIAS_TOKEN_OPTION, '' );
+		if ( is_string( $token ) && $this->isValidAliasQueryToken( $token ) ) {
 			return $token;
 		}
 
-		$token = self::generateAliasQueryToken();
-		$options = $this->all();
-		$options['alias_query_token'] = $token;
-		update_option( self::OPTION, $options, false );
+		$legacy = get_option( self::OPTION, array() );
+		$legacy = is_array( $legacy ) && is_string( $legacy['alias_query_token'] ?? null )
+			? $legacy['alias_query_token']
+			: '';
+		$seed   = self::defaultAliasQueryToken();
+		$token  = $this->isValidAliasQueryToken( $legacy )
+			? $legacy
+			: ( $this->isValidAliasQueryToken( $seed ) ? $seed : self::generateAliasQueryToken() );
 
-		return $token;
+		if ( add_option( self::ALIAS_TOKEN_OPTION, $token, '', false ) ) {
+			return $token;
+		}
+
+		$fresh = get_option( self::ALIAS_TOKEN_OPTION, '' );
+		if ( is_string( $fresh ) && $this->isValidAliasQueryToken( $fresh ) ) {
+			return $fresh;
+		}
+
+		update_option( self::ALIAS_TOKEN_OPTION, $token, false );
+		$fresh = get_option( self::ALIAS_TOKEN_OPTION, '' );
+
+		return is_string( $fresh ) && $this->isValidAliasQueryToken( $fresh )
+			? $fresh
+			: $this->deterministicAliasQueryToken();
+	}
+
+	public function originalPathGuard(): string {
+		return hash_hmac( 'sha256', 'hide-wp-original-path-handoff-v1', $this->aliasQueryToken() );
+	}
+
+	public function aliasRequestToken( string $purpose ): string {
+		if ( ! in_array( $purpose, array_merge( self::PATH_TYPES, array( 'login' ) ), true ) ) {
+			throw new \InvalidArgumentException( 'Unknown alias token purpose.' );
+		}
+
+		return hash_hmac( 'sha256', 'hide-wp-alias-request-' . $purpose . '-v1', $this->aliasQueryToken() );
 	}
 
 	public function loginEnabled(): bool {
@@ -106,7 +184,8 @@ final class Settings {
 
 		return $this->loginRequested()
 			&& is_string( $verifiedHash )
-			&& hash_equals( $this->loginConfigurationHash(), $verifiedHash );
+			&& hash_equals( $this->loginConfigurationHash(), $verifiedHash )
+			&& Marker::isLoginEnabled( $verifiedHash );
 	}
 
 	public function loginRequested(): bool {
@@ -162,12 +241,22 @@ final class Settings {
 
 	public function pathsEnabled(): bool {
 		$state = $this->pathState();
+		$hash  = is_string( $state['verified_hash'] ?? null ) ? $state['verified_hash'] : '';
 
 		return ! is_multisite()
 			&& ! Marker::isRecoveryRequested()
-			&& Marker::isEnabled()
+			&& 1 === preg_match( '/\A[a-f0-9]{64}\z/D', $hash )
+			&& hash_equals( $this->configurationHash(), $hash )
+			&& Marker::isEnabled( $hash )
 			&& true === $state['enabled']
 			&& array() !== $state['aliases'];
+	}
+
+	public function activeConfigurationHash(): string {
+		$state = $this->pathState();
+		$hash  = is_string( $state['verified_hash'] ?? null ) ? $state['verified_hash'] : '';
+
+		return 1 === preg_match( '/\A[a-f0-9]{64}\z/D', $hash ) ? $hash : '';
 	}
 
 	public function activeAliasEnabled( string $type ): bool {
@@ -218,10 +307,9 @@ final class Settings {
 
 	public function configurationHash(): string {
 		$data = array(
-			'aliases' => array(),
-			'server'  => array(
-				'nginx_admin_alias_mode' => $this->nginxAdminAliasMode(),
-				'nginx_fastcgi_pass'     => $this->getString( 'nginx_fastcgi_pass' ),
+			'protocol' => self::ROUTING_PROTOCOL,
+			'aliases'  => array(),
+			'server'   => array(
 				'alias_query_key'        => $this->aliasQueryKey(),
 				'alias_query_token'      => $this->aliasQueryToken(),
 			),
@@ -242,8 +330,12 @@ final class Settings {
 
 	public function loginConfigurationHash(): string {
 		$data = array(
-			'login'   => $this->getSlug( 'login_slug' ),
-			'server'  => array(
+			'protocol' => self::ROUTING_PROTOCOL,
+			'login'    => array(
+				'enabled' => $this->getBool( 'login_enabled' ),
+				'slug'    => $this->getSlug( 'login_slug' ),
+			),
+			'server'   => array(
 				'alias_query_key'   => $this->aliasQueryKey(),
 				'alias_query_token' => $this->aliasQueryToken(),
 			),
@@ -264,7 +356,6 @@ final class Settings {
 		$input      = is_array( $input ) ? $input : array();
 		$result     = $current;
 		$loginValid = true;
-		$pathsValid = true;
 
 		foreach ( array( 'login_slug', 'admin_slug', 'content_slug', 'includes_slug' ) as $key ) {
 			$proposed = isset( $input[ $key ] ) && is_string( $input[ $key ] )
@@ -284,8 +375,6 @@ final class Settings {
 				);
 				if ( 'login_slug' === $key ) {
 					$loginValid = false;
-				} else {
-					$pathsValid = false;
 				}
 				continue;
 			}
@@ -303,30 +392,9 @@ final class Settings {
 				'remove_discovery_links',
 				'strip_core_version',
 				'generic_login_errors',
-				'github_updates_enabled',
 			) as $key
 		) {
 			$result[ $key ] = isset( $input[ $key ] ) && '1' === (string) $input[ $key ];
-		}
-
-
-		$nginxMode = isset( $input['nginx_admin_alias_mode'] ) && is_string( $input['nginx_admin_alias_mode'] )
-			? trim( wp_unslash( $input['nginx_admin_alias_mode'] ) )
-			: (string) $current['nginx_admin_alias_mode'];
-		$result['nginx_admin_alias_mode'] = in_array( $nginxMode, array( 'rewrite', 'fastcgi' ), true ) ? $nginxMode : 'rewrite';
-
-		$nginxFastcgiPass = isset( $input['nginx_fastcgi_pass'] ) && is_string( $input['nginx_fastcgi_pass'] )
-			? trim( wp_unslash( $input['nginx_fastcgi_pass'] ) )
-			: (string) $current['nginx_fastcgi_pass'];
-		if ( '' === $nginxFastcgiPass || $this->isValidNginxFastcgiPass( $nginxFastcgiPass ) ) {
-			$result['nginx_fastcgi_pass'] = $nginxFastcgiPass;
-		} else {
-			add_settings_error(
-				self::OPTION,
-				'invalid_nginx_fastcgi_pass',
-				__( 'The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name.', 'hide-wp-surface' ),
-				'error'
-			);
 		}
 
 		$aliasQueryKey = isset( $input['alias_query_key'] ) && is_string( $input['alias_query_key'] )
@@ -347,37 +415,6 @@ final class Settings {
 			$result['alias_query_token'] = self::generateAliasQueryToken();
 		} elseif ( ! is_string( $result['alias_query_token'] ?? null ) || ! $this->isValidAliasQueryToken( (string) $result['alias_query_token'] ) ) {
 			$result['alias_query_token'] = self::generateAliasQueryToken();
-		}
-
-		$githubRepository = isset( $input['github_repository'] ) && is_string( $input['github_repository'] )
-			? trim( wp_unslash( $input['github_repository'] ) )
-			: (string) $current['github_repository'];
-		if ( $this->isValidGithubRepository( $githubRepository ) ) {
-			$result['github_repository'] = $githubRepository;
-		} else {
-			add_settings_error(
-				self::OPTION,
-				'invalid_github_repository',
-				__( 'The GitHub repository must use owner/repository format.', 'hide-wp-surface' ),
-				'error'
-			);
-		}
-
-		if ( isset( $input['github_token_clear'] ) && '1' === (string) $input['github_token_clear'] ) {
-			$result['github_token'] = '';
-		} elseif ( isset( $input['github_token'] ) && is_string( $input['github_token'] ) ) {
-			$githubToken = trim( wp_unslash( $input['github_token'] ) );
-			if ( '' !== $githubToken ) {
-				$result['github_token'] = $this->sanitizeGithubToken( $githubToken );
-			}
-		}
-
-		if (
-			$result['github_updates_enabled'] !== $current['github_updates_enabled']
-			|| $result['github_repository'] !== $current['github_repository']
-			|| $result['github_token'] !== $current['github_token']
-		) {
-			$this->clearGithubUpdateCache( (string) $current['github_repository'], (string) $result['github_repository'] );
 		}
 
 		if ( is_multisite() ) {
@@ -418,8 +455,6 @@ final class Settings {
 			$result[ $enabledKey ] = $current[ $enabledKey ];
 			if ( $isLoginKey ) {
 				$loginValid = false;
-			} else {
-				$pathsValid = false;
 			}
 		}
 
@@ -432,8 +467,6 @@ final class Settings {
 				'error'
 			);
 			$loginValid = false;
-			$pathsValid = false;
-
 			foreach ( array( 'login_slug', 'login_enabled', 'admin_slug', 'admin_enabled', 'content_slug', 'content_enabled', 'includes_slug', 'includes_enabled' ) as $key ) {
 				$result[ $key ] = $current[ $key ];
 			}
@@ -449,26 +482,85 @@ final class Settings {
 			|| $result['content_enabled'] !== $current['content_enabled']
 			|| $result['includes_slug'] !== $current['includes_slug']
 			|| $result['includes_enabled'] !== $current['includes_enabled']
-			|| $result['nginx_admin_alias_mode'] !== $current['nginx_admin_alias_mode']
-			|| $result['nginx_fastcgi_pass'] !== $current['nginx_fastcgi_pass']
 			|| $result['alias_query_key'] !== $current['alias_query_key']
 			|| $result['alias_query_token'] !== $current['alias_query_token'];
 
-		if ( $pathsChanged && $pathsValid && $this->pathsEnabled() ) {
+		if ( $pathsChanged ) {
+			$markerDisabled = Marker::disable();
+			$stateCleared   = $this->clearPathVerification();
+			if ( ! $markerDisabled || ! $stateCleared ) {
+				Marker::requestRecovery();
+				add_settings_error(
+					self::OPTION,
+					'paths_disable_failed',
+					__( 'Path settings were not changed because the active server state could not be disabled safely. Recovery mode was requested; check filesystem and database permissions.', 'hide-wp-surface' ),
+					'error'
+				);
+
+				foreach (
+					array(
+						'admin_slug',
+						'admin_enabled',
+						'content_slug',
+						'content_enabled',
+						'includes_slug',
+						'includes_enabled',
+						'alias_query_key',
+						'alias_query_token',
+					) as $key
+				) {
+					$result[ $key ] = $current[ $key ];
+				}
+			} else {
+				add_settings_error(
+					self::OPTION,
+					'paths_need_verification',
+					__( 'Path aliases were disabled before saving the new configuration. Replace the generated server block, then run Verify and Enable from the standard wp-admin path.', 'hide-wp-surface' ),
+					'info'
+				);
+			}
+		}
+
+		if ( $loginChanged || false === $result['login_enabled'] ) {
+			if ( ! Marker::disableLogin() ) {
+				Marker::requestRecovery();
+				$result['login_slug']        = $current['login_slug'];
+				$result['login_enabled']     = $current['login_enabled'];
+				$result['alias_query_key']   = $current['alias_query_key'];
+				$result['alias_query_token'] = $current['alias_query_token'];
+				add_settings_error(
+					self::OPTION,
+					'login_disable_failed',
+					__( 'Login settings were not changed because the active login marker could not be disabled safely. Recovery mode was requested; check filesystem permissions.', 'hide-wp-surface' ),
+					'error'
+				);
+			} else {
+				delete_option( self::LOGIN_VERIFIED_OPTION );
+			}
+		}
+
+		if ( ! hash_equals( (string) $current['alias_query_token'], (string) $result['alias_query_token'] )
+			&& ! $this->persistAliasQueryToken( (string) $result['alias_query_token'] ) ) {
+			$result['alias_query_token'] = $current['alias_query_token'];
 			add_settings_error(
 				self::OPTION,
-				'paths_need_verification',
-				__( 'Path settings were saved. Previously verified aliases remain active until you replace the generated server block and run Verify and Enable.', 'hide-wp-surface' ),
-				'info'
+				'alias_token_save_failed',
+				__( 'The alias token could not be rotated. Path and login aliases remain disabled; check database write permissions before verification.', 'hide-wp-surface' ),
+				'error'
 			);
 		}
 
-		if ( $loginChanged || ! $loginValid || false === $result['login_enabled'] ) {
-			delete_option( self::LOGIN_VERIFIED_OPTION );
-		}
-
 		// Remove legacy internal fields that were previously stored with user-editable settings.
-		unset( $result['path_aliases_enabled'], $result['verified_hash'] );
+		unset(
+			$result['alias_query_token'],
+			$result['path_aliases_enabled'],
+			$result['verified_hash'],
+			$result['nginx_admin_alias_mode'],
+			$result['nginx_fastcgi_pass'],
+			$result['github_updates_enabled'],
+			$result['github_repository'],
+			$result['github_token']
+		);
 
 		return $result;
 	}
@@ -506,23 +598,34 @@ final class Settings {
 		}
 	}
 
-	private static function defaultGithubRepository(): string {
-		if ( defined( 'HIDE_WP_GITHUB_REPOSITORY' ) && is_string( HIDE_WP_GITHUB_REPOSITORY )
-			&& 1 === preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', HIDE_WP_GITHUB_REPOSITORY ) ) {
-			return HIDE_WP_GITHUB_REPOSITORY;
+	private function deterministicAliasQueryToken(): string {
+		$key = function_exists( 'wp_salt' ) ? wp_salt( 'auth' ) : '';
+		if ( '' === $key && defined( 'AUTH_KEY' ) && is_string( AUTH_KEY ) ) {
+			$key = AUTH_KEY;
+		}
+		if ( '' === $key ) {
+			return self::generateAliasQueryToken();
 		}
 
-		return 'fifoqueue/hide-wp-surface';
+		return hash_hmac(
+			'sha256',
+			'hide-wp-alias-token-fallback-v1|' . (string) get_option( 'siteurl', '' ),
+			$key
+		);
 	}
 
-	private function isValidGithubRepository( string $repository ): bool {
-		return 1 === preg_match( '/\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/', $repository );
-	}
+	private function persistAliasQueryToken( string $token ): bool {
+		if ( ! $this->isValidAliasQueryToken( $token ) ) {
+			return false;
+		}
 
-	private function sanitizeGithubToken( string $token ): string {
-		$token = preg_replace( '/[^A-Za-z0-9_.-]+/', '', $token );
+		if ( update_option( self::ALIAS_TOKEN_OPTION, $token, false ) ) {
+			return true;
+		}
 
-		return is_string( $token ) ? substr( $token, 0, 255 ) : '';
+		$fresh = get_option( self::ALIAS_TOKEN_OPTION, '' );
+
+		return is_string( $fresh ) && hash_equals( $token, $fresh );
 	}
 
 	private function isValidAliasQueryKey( string $key ): bool {
@@ -531,22 +634,6 @@ final class Settings {
 
 	private function isValidAliasQueryToken( string $token ): bool {
 		return 1 === preg_match( '/\A[A-Za-z0-9_-]{16,128}\z/', $token );
-	}
-
-	private function isValidNginxFastcgiPass( string $value ): bool {
-		return 1 === preg_match( '/\A(?:unix:\/[-A-Za-z0-9_\/.+~]+\.sock|[A-Za-z0-9_.-]+:[0-9]{2,5}|[A-Za-z0-9_.-]+)\z/', $value );
-	}
-
-	private function clearGithubUpdateCache( string ...$repositories ): void {
-		delete_site_transient( 'update_plugins' );
-		delete_site_transient( 'hide_wp_github_latest_release' );
-		foreach ( array_unique( $repositories ) as $repository ) {
-			if ( '' === $repository ) {
-				continue;
-			}
-			delete_site_transient( 'hide_wp_github_latest_release_' . substr( hash( 'sha256', strtolower( $repository ) ), 0, 12 ) );
-			delete_site_transient( 'hide_wp_puc_latest_' . substr( hash( 'sha256', strtolower( $repository ) ), 0, 12 ) );
-		}
 	}
 
 	private function isValidSlug( string $slug ): bool {

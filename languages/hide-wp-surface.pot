@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Hide WP Surface 0.1.29\n"
+"Project-Id-Version: Hide WP Surface 0.2.0\n"
 "Report-Msgid-Bugs-To: https://github.com/fifoqueue/hide-wp-surface/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 #: hide-wp.php
 #: src/AdminPage.php:34
 #: src/AdminPage.php:35
-#: src/AdminPage.php:120
+#: src/AdminPage.php:119
 msgid "Hide WP Surface"
 msgstr ""
 
@@ -37,7 +37,7 @@ msgstr ""
 msgid "fifoqueue"
 msgstr ""
 
-#: hide-wp.php:70
+#: hide-wp.php:83
 msgid "Hide WP Surface requires WordPress 7.0 or later and PHP 8.3 or later."
 msgstr ""
 
@@ -57,318 +57,240 @@ msgstr ""
 msgid "You are not allowed to manage these settings."
 msgstr ""
 
-#: src/AdminPage.php:115
-#: src/AdminPage.php:494
+#: src/AdminPage.php:114
+#: src/AdminPage.php:421
 msgid "Enabled and verified"
 msgstr ""
 
-#: src/AdminPage.php:116
+#: src/AdminPage.php:115
 msgid "Pending verification; wp-login.php remains available"
 msgstr ""
 
-#: src/AdminPage.php:116
-#: src/AdminPage.php:490
+#: src/AdminPage.php:115
+#: src/AdminPage.php:422
 msgid "Disabled"
 msgstr ""
 
-#: src/AdminPage.php:122
+#: src/AdminPage.php:121
 msgid "Path hiding reduces automated scanning noise. It does not replace updates, strong authentication, 2FA, rate limiting, or a WAF."
 msgstr ""
 
-#: src/AdminPage.php:129
+#: src/AdminPage.php:128
 msgid "Emergency recovery mode is active. Path verification remains disabled until the recovery constant and recovery file are removed."
 msgstr ""
 
 #: src/AdminPage.php:133
+msgid "A previously saved alias state has no matching configuration marker. Aliases are disabled; replace the generated server block and verify them again."
+msgstr ""
+
+#: src/AdminPage.php:137
 msgid "Settings sections"
 msgstr ""
 
-#: src/AdminPage.php:135
+#: src/AdminPage.php:139
 msgid "Paths and Login"
 msgstr ""
 
-#: src/AdminPage.php:138
+#: src/AdminPage.php:142
 msgid "Server Integration"
 msgstr ""
 
-#: src/AdminPage.php:141
-#: src/AdminPage.php:323
+#: src/AdminPage.php:145
+#: src/AdminPage.php:290
 msgid "Fingerprint Cleanup"
 msgstr ""
 
-#: src/AdminPage.php:144
-msgid "Updates"
-msgstr ""
-
-#: src/AdminPage.php:152
+#: src/AdminPage.php:153
 msgid "Login Path"
 msgstr ""
 
-#: src/AdminPage.php:155
+#: src/AdminPage.php:156
 msgid "Custom login"
 msgstr ""
 
-#: src/AdminPage.php:159
+#: src/AdminPage.php:160
 msgid "Hide direct wp-login.php requests"
 msgstr ""
 
-#: src/AdminPage.php:162
+#: src/AdminPage.php:163
 msgid "Custom login and server paths are unavailable on multisite."
 msgstr ""
 
-#: src/AdminPage.php:167
+#: src/AdminPage.php:168
 msgid "Login path"
 msgstr ""
 
-#: src/AdminPage.php:171
+#: src/AdminPage.php:172
 msgid "Login status"
 msgstr ""
 
-#: src/AdminPage.php:180
+#: src/AdminPage.php:181
 msgid "Verify Login Path"
 msgstr ""
 
-#: src/AdminPage.php:187
+#: src/AdminPage.php:188
 msgid "Verified Server Aliases"
 msgstr ""
 
-#: src/AdminPage.php:189
+#: src/AdminPage.php:190
 msgid "Choose which WordPress directories to alias, save the paths, install the generated server configuration, then use Verify and Enable. The plugin never edits Nginx or Apache configuration."
 msgstr ""
 
-#: src/AdminPage.php:193
+#: src/AdminPage.php:194
 msgid "Server aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content on the same origin and URL directory."
 msgstr ""
 
-#: src/AdminPage.php:198
+#: src/AdminPage.php:199
 msgid "Select at least one server alias before running verification. Use Disable Path Aliases to turn all verified aliases off."
 msgstr ""
 
-#: src/AdminPage.php:203
+#: src/AdminPage.php:204
 msgid "Admin path"
 msgstr ""
 
-#: src/AdminPage.php:203
+#: src/AdminPage.php:204
 msgid "Alias wp-admin"
 msgstr ""
 
-#: src/AdminPage.php:204
+#: src/AdminPage.php:205
 msgid "Content path"
 msgstr ""
 
-#: src/AdminPage.php:204
+#: src/AdminPage.php:205
 msgid "Alias wp-content"
 msgstr ""
 
-#: src/AdminPage.php:205
+#: src/AdminPage.php:206
 msgid "Includes path"
 msgstr ""
 
-#: src/AdminPage.php:205
+#: src/AdminPage.php:206
 msgid "Alias wp-includes"
 msgstr ""
 
-#: src/AdminPage.php:208
+#: src/AdminPage.php:209
 msgid "Status"
 msgstr ""
 
 #: src/AdminPage.php:220
-msgid "Saved settings are pending verification; the previous verified alias set remains active for live requests."
-msgstr ""
-
-#: src/AdminPage.php:224
 msgid "Server aliases are intentionally unavailable on multisite."
 msgstr ""
 
-#: src/AdminPage.php:232
+#: src/AdminPage.php:228
 msgid "Nginx Integration"
 msgstr ""
 
+#: src/AdminPage.php:230
+msgid "The generated aliases re-enter the canonical WordPress paths so the existing PHP handler and path-specific security rules remain in effect."
+msgstr ""
+
 #: src/AdminPage.php:234
-msgid "Standard rewrite mode is simpler and uses your existing PHP handler. FastCGI compatibility mode is only for Nginx stacks where standard rewrites are swallowed by the WordPress front controller."
-msgstr ""
-
-#: src/AdminPage.php:238
-msgid "Admin alias mode"
-msgstr ""
-
-#: src/AdminPage.php:242
-msgid "Standard rewrite mode"
-msgstr ""
-
-#: src/AdminPage.php:246
-msgid "FastCGI compatibility mode"
-msgstr ""
-
-#. translators: %s: current wp-admin alias path to admin-ajax.php.
-#: src/AdminPage.php:252
-#, php-format
-msgid "Use Standard first. Switch to FastCGI only if %s or admin assets still fall into the theme 404 handler."
-msgstr ""
-
-#: src/AdminPage.php:260
 msgid "Alias query key"
 msgstr ""
 
-#: src/AdminPage.php:263
-msgid "Used by the generated login rewrite and by Standard wp-admin rewrite mode as an internal alias flag. Use lowercase letters, numbers, and underscores."
+#: src/AdminPage.php:237
+msgid "Used by generated internal rewrites as a capability parameter. Each route type receives a separate derived token. Use lowercase letters, numbers, and underscores for the key."
 msgstr ""
 
-#: src/AdminPage.php:267
+#: src/AdminPage.php:241
 msgid "Alias token"
 msgstr ""
 
-#: src/AdminPage.php:272
+#: src/AdminPage.php:246
 msgid "Rotate token on save"
 msgstr ""
 
-#: src/AdminPage.php:274
+#: src/AdminPage.php:248
 msgid "After changing the key or rotating the token, replace the generated server block, verify the login path again, and run Verify and Enable for path aliases."
 msgstr ""
 
-#: src/AdminPage.php:278
-msgid "Nginx FastCGI pass"
-msgstr ""
-
-#: src/AdminPage.php:281
-msgid "Only used by FastCGI compatibility mode. Examples: unix:/run/php/php8.5-fpm.sock, 127.0.0.1:9000, or a named upstream."
-msgstr ""
-
-#: src/AdminPage.php:287
+#: src/AdminPage.php:254
 msgid "Server Configuration"
 msgstr ""
 
-#: src/AdminPage.php:288
+#: src/AdminPage.php:255
 msgid "Back up the server configuration first. Replace any older Hide WP Surface block. For Apache, insert it before the standard WordPress rewrite block. For Nginx, insert it in the WordPress server block and reload Nginx."
 msgstr ""
 
-#: src/AdminPage.php:289
-msgid "Use a security-patched web server. For upstream Nginx, use 1.30.2/1.31.1 or later because this block uses the rewrite module."
+#: src/AdminPage.php:256
+msgid "Use a security-patched web server. For upstream Nginx, use 1.30.4/1.31.3 or later. Apply the same WAF, IP restrictions, Basic Auth, rate limits, and cache exclusions to every alias at any proxy or CDN in front of WordPress, and redact the configured alias query key from logs."
 msgstr ""
 
-#: src/AdminPage.php:291
+#: src/AdminPage.php:258
 msgid "Apache 2.4+ (.htaccess)"
 msgstr ""
 
-#: src/AdminPage.php:294
+#: src/AdminPage.php:261
 msgid "Nginx"
 msgstr ""
 
-#: src/AdminPage.php:299
+#: src/AdminPage.php:266
 msgid "Verify and Enable"
 msgstr ""
 
-#: src/AdminPage.php:302
+#: src/AdminPage.php:269
 msgid "Disable Path Aliases"
 msgstr ""
 
-#: src/AdminPage.php:307
+#: src/AdminPage.php:274
 msgid "Emergency Recovery"
 msgstr ""
 
 #. translators: 1: wp-config.php constant, 2: recovery file path.
-#: src/AdminPage.php:313
+#: src/AdminPage.php:280
 #, php-format
 msgid "Set %1$s in wp-config.php to disable PHP-side routing. For full Apache or Nginx recovery, create an empty file at %2$s; generated server rules cannot read the PHP constant."
 msgstr ""
 
-#: src/AdminPage.php:326
+#: src/AdminPage.php:293
 msgid "Remove generator metadata"
 msgstr ""
 
-#: src/AdminPage.php:327
+#: src/AdminPage.php:294
 msgid "Remove RSD, WLW, shortlink, REST, oEmbed, and pingback discovery hints"
 msgstr ""
 
-#: src/AdminPage.php:328
+#: src/AdminPage.php:295
 msgid "Remove only the WordPress core version from asset query strings"
 msgstr ""
 
-#: src/AdminPage.php:329
+#: src/AdminPage.php:296
 msgid "Use a generic login error message"
 msgstr ""
 
-#: src/AdminPage.php:335
-msgid "Automatic Updates"
-msgstr ""
-
-#: src/AdminPage.php:338
-msgid "GitHub update checks"
-msgstr ""
-
-#: src/AdminPage.php:342
-msgid "Check GitHub Releases for plugin updates"
-msgstr ""
-
-#: src/AdminPage.php:347
-msgid "GitHub repository"
-msgstr ""
-
-#: src/AdminPage.php:350
-msgid "Use owner/repository. The latest GitHub Release must include a ZIP asset such as hide-wp-surface.zip."
-msgstr ""
-
-#: src/AdminPage.php:354
-msgid "GitHub token"
-msgstr ""
-
-#: src/AdminPage.php:356
-msgid "Leave blank to keep the saved token"
-msgstr ""
-
-#: src/AdminPage.php:358
-msgid "A token is saved. Enter a new token to replace it."
-msgstr ""
-
-#: src/AdminPage.php:358
-msgid "No token is saved. Public GitHub API checks may be rate limited without one."
-msgstr ""
-
-#: src/AdminPage.php:363
-msgid "Clear the saved token"
-msgstr ""
-
-#: src/AdminPage.php:366
-msgid "For private repositories or rate-limit avoidance, use a fine-grained GitHub token with Contents: read access."
-msgstr ""
-
-#: src/AdminPage.php:373
+#: src/AdminPage.php:302
 msgid "Save Settings"
 msgstr ""
 
-#: src/AdminPage.php:383
-#: src/AdminPage.php:402
-#: src/AdminPage.php:423
+#: src/AdminPage.php:312
+#: src/AdminPage.php:331
+#: src/AdminPage.php:352
 msgid "Insufficient permissions."
 msgstr ""
 
-#: src/AdminPage.php:393
+#: src/AdminPage.php:322
 msgid "The login path is verified. Direct wp-login.php requests are now hidden."
 msgstr ""
 
-#: src/AdminPage.php:414
+#: src/AdminPage.php:343
 msgid "Selected alias and blocking checks passed. Path aliases are enabled."
 msgstr ""
 
-#: src/AdminPage.php:433
+#: src/AdminPage.php:364
 msgid "Path aliases are disabled and the server marker was removed."
 msgstr ""
 
-#: src/AdminPage.php:481
+#: src/AdminPage.php:412
 msgid "Enabled"
 msgstr ""
 
-#: src/AdminPage.php:495
-msgid "Enabled with previous verified paths"
-msgstr ""
-
 #. translators: %s: comma-separated enabled aliases.
-#: src/AdminPage.php:503
+#: src/AdminPage.php:430
 #, php-format
 msgid "Active aliases: %s."
 msgstr ""
 
-#: src/AdminPage.php:504
+#: src/AdminPage.php:431
 msgid "none"
 msgstr ""
 
@@ -389,54 +311,54 @@ msgstr ""
 msgid "Hide WP Surface cannot be activated on multisite. Login and server aliases require one verified configuration per origin."
 msgstr ""
 
-#: src/RequestGuard.php:27
+#: src/RequestGuard.php:30
 msgid "Authentication failed."
 msgstr ""
 
 #. translators: %s: emergency recovery file path.
-#: src/ServerVerifier.php:93
+#: src/ServerVerifier.php:95
 #, php-format
 msgid "The server marker could not be removed. An emergency recovery file was created at %s. Check filesystem permissions before removing it."
 msgstr ""
 
-#: src/ServerVerifier.php:96
+#: src/ServerVerifier.php:98
 msgid "The server marker and emergency recovery file could not be written. Restore the original routes manually and check filesystem permissions."
 msgstr ""
 
-#: src/ServerVerifier.php:122
+#: src/ServerVerifier.php:124
 msgid "Verified path aliases are disabled on multisite installations."
 msgstr ""
 
 #. translators: %s: emergency recovery file path.
-#: src/ServerVerifier.php:130
+#: src/ServerVerifier.php:132
 #, php-format
 msgid "Recovery mode is active. Remove the recovery constant and the file at %s before verification."
 msgstr ""
 
-#: src/ServerVerifier.php:139
+#: src/ServerVerifier.php:141
 msgid "Path aliases require HTTPS, an ASCII-only WordPress URL directory, and wp-content in that same origin and directory."
 msgstr ""
 
-#: src/ServerVerifier.php:144
+#: src/ServerVerifier.php:146
 msgid "Select at least one server alias before verification."
 msgstr ""
 
-#: src/ServerVerifier.php:148
+#: src/ServerVerifier.php:150
 msgid "Every enabled server alias path must be unique."
 msgstr ""
 
 #. translators: %s: path slug that conflicts with an existing route.
-#: src/ServerVerifier.php:157
-#: src/Settings.php:412
+#: src/ServerVerifier.php:159
+#: src/Settings.php:449
 #, php-format
 msgid "The path \"%s\" conflicts with existing content or a file in the WordPress directory."
 msgstr ""
 
-#: src/ServerVerifier.php:178
+#: src/ServerVerifier.php:179
 msgid "The previous server marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing."
 msgstr ""
 
-#: src/ServerVerifier.php:179
+#: src/ServerVerifier.php:180
 msgid "The previous server marker and emergency recovery file could not be written. Restore the original routes manually before continuing."
 msgstr ""
 
@@ -446,89 +368,117 @@ msgstr ""
 msgid "Could not create the server verification marker at %s."
 msgstr ""
 
-#: src/ServerVerifier.php:205
-#: src/ServerVerifier.php:222
+#: src/ServerVerifier.php:216
+#: src/ServerVerifier.php:233
 msgid "The path settings changed during verification. Review the generated server block and try again."
 msgstr ""
 
-#: src/ServerVerifier.php:213
+#: src/ServerVerifier.php:224
 msgid "The verified path state could not be saved. Check database write access for the hide_wp_path_state option."
 msgstr ""
 
 #. translators: %s: marker file path.
-#: src/ServerVerifier.php:232
+#: src/ServerVerifier.php:243
 #, php-format
 msgid "Could not create the server activation marker at %s."
 msgstr ""
 
-#: src/ServerVerifier.php:254
+#: src/ServerVerifier.php:269
 msgid "Enable and save the custom login path first."
 msgstr ""
 
-#: src/ServerVerifier.php:259
+#: src/ServerVerifier.php:274
 msgid "Login path verification requires an HTTPS WordPress URL."
 msgstr ""
 
-#: src/ServerVerifier.php:278
+#: src/ServerVerifier.php:283
+msgid "The previous login marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing."
+msgstr ""
+
+#: src/ServerVerifier.php:284
+msgid "The previous login marker and emergency recovery file could not be written. Restore the original login route manually before continuing."
+msgstr ""
+
+#. translators: %s: marker file path.
+#: src/ServerVerifier.php:295
+#, php-format
+msgid "Could not create the login verification marker at %s."
+msgstr ""
+
+#: src/ServerVerifier.php:326
 msgid "The custom login path did not reach wp-login.php through the generated alias rewrite. Replace the generated server block and reload the web server."
 msgstr ""
 
-#: src/ServerVerifier.php:283
+#: src/ServerVerifier.php:334
 msgid "The verified login path could not be saved."
 msgstr ""
 
-#: src/ServerVerifier.php:315
+#. translators: %s: marker file path.
+#: src/ServerVerifier.php:347
+#, php-format
+msgid "Could not create the login activation marker at %s."
+msgstr ""
+
+#: src/ServerVerifier.php:389
 msgid "Another path operation is already running. Wait a moment and try again."
 msgstr ""
 
-#: src/ServerVerifier.php:357
+#: src/ServerVerifier.php:434
 msgid "The wp-content alias did not return the plugin probe file."
 msgstr ""
 
-#: src/ServerVerifier.php:370
+#: src/ServerVerifier.php:447
 msgid "The wp-includes alias did not return a known core asset."
 msgstr ""
 
 #. translators: 1: checked URL, 2: HTTP status or transport error, 3: short response excerpt.
-#: src/ServerVerifier.php:397
+#: src/ServerVerifier.php:474
 #, php-format
 msgid "The wp-admin alias did not execute admin-ajax.php. Checked %1$s. Result: %2$s. Response: %3$s"
 msgstr ""
 
-#: src/ServerVerifier.php:430
-msgid "An enabled original WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server."
+#: src/ServerVerifier.php:508
+msgid "An enabled original WordPress path, including an encoded or duplicate-slash variant, did not reach the theme 404 handler. Replace the generated server block and reload the web server."
 msgstr ""
 
-#: src/ServerVerifier.php:454
+#: src/ServerVerifier.php:533
 msgid "The request did not reach the verified WordPress theme 404 handler."
 msgstr ""
 
-#: src/ServerVerifier.php:475
+#: src/ServerVerifier.php:578
+msgid "A verification marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing."
+msgstr ""
+
+#: src/ServerVerifier.php:617
 msgid "No HTTP status"
 msgstr ""
 
 #. translators: %s: invalid path slug.
-#: src/Settings.php:280
+#: src/Settings.php:371
 #, php-format
 msgid "The path \"%s\" is invalid or reserved. Use 1-63 lowercase ASCII letters, numbers, or hyphens."
 msgstr ""
 
-#: src/Settings.php:327
-msgid "The Nginx FastCGI pass value is invalid. Use a Unix socket such as unix:/run/php/php8.3-fpm.sock, host:port, or an upstream name."
-msgstr ""
-
-#: src/Settings.php:341
+#: src/Settings.php:409
 msgid "The Nginx alias query key must use 3-32 lowercase letters, numbers, or underscores."
 msgstr ""
 
-#: src/Settings.php:361
-msgid "The GitHub repository must use owner/repository format."
-msgstr ""
-
-#: src/Settings.php:431
+#: src/Settings.php:466
 msgid "Every enabled custom path must be unique."
 msgstr ""
 
-#: src/Settings.php:461
-msgid "Path settings were saved. Previously verified aliases remain active until you replace the generated server block and run Verify and Enable."
+#: src/Settings.php:496
+msgid "Path settings were not changed because the active server state could not be disabled safely. Recovery mode was requested; check filesystem and database permissions."
+msgstr ""
+
+#: src/Settings.php:518
+msgid "Path aliases were disabled before saving the new configuration. Replace the generated server block, then run Verify and Enable from the standard wp-admin path."
+msgstr ""
+
+#: src/Settings.php:534
+msgid "Login settings were not changed because the active login marker could not be disabled safely. Recovery mode was requested; check filesystem permissions."
+msgstr ""
+
+#: src/Settings.php:548
+msgid "The alias token could not be rotated. Path and login aliases remain disabled; check database write permissions before verification."
 msgstr ""

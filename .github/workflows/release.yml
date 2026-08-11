@@ -22,10 +22,10 @@ jobs:
       ZIP_NAME: hide-wp-surface.zip
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: '8.3'
           coverage: none
@@ -63,13 +63,13 @@ jobs:
 
           echo "plugin_version=${plugin_version}" >> "${GITHUB_OUTPUT}"
 
-      - name: Install Composer dependencies
+      - name: Validate Composer metadata
         shell: bash
         run: |
           set -euo pipefail
           if [[ -f composer.json ]]; then
             composer validate --no-check-publish
-            composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+            composer audit --locked --no-interaction
           fi
 
       - name: Validate translations
@@ -145,12 +145,6 @@ jobs:
               $source
           );
 
-          $source = preg_replace(
-              "/define\(\s*'HIDE_WP_GITHUB_REPOSITORY'\s*,\s*'[^']+'\s*\);/",
-              "define( 'HIDE_WP_GITHUB_REPOSITORY', '" . $repo . "' );",
-              $source
-          );
-
           file_put_contents($file, $source);
           PHP
 
@@ -189,18 +183,25 @@ jobs:
             --exclude '.hide-wp-recovery' \
             --exclude 'runtime/paths-enabled.php' \
             --exclude 'runtime/paths-probe.php' \
-            --exclude 'runtime/paths-enabled.flag'
+            --exclude 'runtime/paths-enabled.flag' \
+            --exclude 'runtime/paths-enabled-*.php' \
+            --exclude 'runtime/paths-probe-*.php' \
+            --exclude 'runtime/login-enabled-*.php' \
+            --exclude 'runtime/login-probe-*.php'
 
           ( cd build && zip -r "../dist/${ZIP_NAME}" "${PLUGIN_DIR}" )
+          ( cd dist && sha256sum "${ZIP_NAME}" > "${ZIP_NAME}.sha256" )
           unzip -l "dist/${ZIP_NAME}" | grep -F "${PLUGIN_DIR}/hide-wp.php"
           unzip -l "dist/${ZIP_NAME}" | grep -F "${PLUGIN_DIR}/readme.txt"
+          ( cd dist && sha256sum --check "${ZIP_NAME}.sha256" )
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hide-wp-surface-package
           path: |
             dist/hide-wp-surface.zip
+            dist/hide-wp-surface.zip.sha256
             release-notes.md
           retention-days: 14
 
@@ -215,12 +216,12 @@ jobs:
       contents: write
     steps:
       - name: Check out repository with tags
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
 
       - name: Download package artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
         with:
           name: hide-wp-surface-package
           path: release-dist
@@ -235,6 +236,7 @@ jobs:
           set -euo pipefail
           tag_name="v${PLUGIN_VERSION}"
           zip_path='release-dist/dist/hide-wp-surface.zip'
+          checksum_path='release-dist/dist/hide-wp-surface.zip.sha256'
           notes_path='release-dist/release-notes.md'
 
           if git ls-remote --exit-code --tags origin "refs/tags/${tag_name}" >/dev/null 2>&1; then
@@ -252,7 +254,7 @@ jobs:
           git tag -a "${tag_name}" -m "Hide WP Surface ${PLUGIN_VERSION}" "${COMMIT_SHA}"
           git push origin "${tag_name}"
 
-          gh release create "${tag_name}" "${zip_path}" \
+          gh release create "${tag_name}" "${zip_path}" "${checksum_path}" \
             --target "${COMMIT_SHA}" \
             --title "Hide WP Surface ${PLUGIN_VERSION}" \
             --notes-file "${notes_path}"

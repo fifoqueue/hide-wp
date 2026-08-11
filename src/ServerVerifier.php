@@ -12,7 +12,7 @@ final readonly class ServerVerifier {
 	private const PROBE_ACTION = 'hide_wp_route_probe';
 	private const PROBE_MARKER = 'hide-wp-route-probe-v1';
 	private const LOCK_OPTION  = 'hide_wp_operation_lock';
-	private const LOCK_TTL     = 120;
+	private const LOCK_TTL     = 300;
 
 	public function __construct(
 		private Settings $settings,
@@ -22,14 +22,16 @@ final readonly class ServerVerifier {
 
 	public function boot(): void {
 		$this->cleanupStaleState();
-		add_action( 'wp_ajax_' . self::PROBE_ACTION, array( $this, 'serveProbe' ) );
-		add_action( 'wp_ajax_nopriv_' . self::PROBE_ACTION, array( $this, 'serveProbe' ) );
+
+		$token = $this->requestProbeToken();
+		if ( '' !== $token && $this->hasPendingProbe( $token ) ) {
+			add_action( 'wp_ajax_' . self::PROBE_ACTION, array( $this, 'serveProbe' ) );
+			add_action( 'wp_ajax_nopriv_' . self::PROBE_ACTION, array( $this, 'serveProbe' ) );
+		}
 	}
 
 	public function serveProbe(): never {
-		$token = isset( $_GET['token'] ) && is_string( $_GET['token'] )
-			? sanitize_text_field( wp_unslash( $_GET['token'] ) )
-			: '';
+		$token = $this->requestProbeToken();
 		$key   = 'hwp_probe_' . hash( 'sha256', $token );
 		$saved = get_transient( $key );
 
@@ -161,7 +163,6 @@ final readonly class ServerVerifier {
 		}
 
 		$configurationHash = $this->settings->configurationHash();
-		$hadActiveMarker   = Marker::isEnabled() && $this->settings->pathsEnabled();
 
 		if ( $this->settings->loginRequested() && ! $this->settings->loginEnabled() ) {
 			$loginResult = $this->verifyLoginRouteUnlocked();
@@ -180,26 +181,36 @@ final readonly class ServerVerifier {
 			);
 		}
 
-		if ( ! Marker::enableProbe() ) {
-			$this->restorePreviousMarker( $hadActiveMarker );
+		if ( ! Marker::enableProbe( $configurationHash ) ) {
 			return new WP_Error(
 				'probe_marker',
 				sprintf(
 					/* translators: %s: marker file path. */
 					__( 'Could not create the server verification marker at %s.', 'hide-wp-surface' ),
-					Marker::probePath()
+					Marker::probePath( $configurationHash )
 				)
 			);
 		}
+		register_shutdown_function(
+			static function () use ( $configurationHash ): void {
+				if ( ! Marker::disableProbe( $configurationHash ) ) {
+					Marker::requestRecovery();
+				}
+			}
+		);
 
 		$aliasResult = $this->verifyAliasRoutes();
 		if ( is_wp_error( $aliasResult ) ) {
-			$this->restorePreviousMarker( $hadActiveMarker );
+			if ( ! $this->cleanupPathProbe( $configurationHash ) ) {
+				return $this->probeCleanupError();
+			}
 			return $aliasResult;
 		}
 
 		if ( ! hash_equals( $configurationHash, $this->settings->configurationHash() ) ) {
-			$this->restorePreviousMarker( $hadActiveMarker );
+			if ( ! $this->cleanupPathProbe( $configurationHash ) ) {
+				return $this->probeCleanupError();
+			}
 			return new WP_Error(
 				'configuration_changed',
 				__( 'The path settings changed during verification. Review the generated server block and try again.', 'hide-wp-surface' )
@@ -223,19 +234,23 @@ final readonly class ServerVerifier {
 			);
 		}
 
-		if ( ! Marker::enable() ) {
+		if ( ! Marker::enable( $configurationHash ) ) {
 			$this->disable();
 			return new WP_Error(
 				'marker',
 				sprintf(
 					/* translators: %s: marker file path. */
 					__( 'Could not create the server activation marker at %s.', 'hide-wp-surface' ),
-					Marker::path()
+					Marker::path( $configurationHash )
 				)
 			);
 		}
 
-		Marker::disableProbe();
+		if ( ! $this->cleanupPathProbe( $configurationHash ) ) {
+			$this->disable();
+
+			return $this->probeCleanupError();
+		}
 
 		$blockResult = $this->verifyOriginalPathsBlocked();
 		if ( is_wp_error( $blockResult ) ) {
@@ -259,7 +274,37 @@ final readonly class ServerVerifier {
 			return new WP_Error( 'login_https', __( 'Login path verification requires an HTTPS WordPress URL.', 'hide-wp-surface' ) );
 		}
 
+		if ( ! Marker::disableLogin() ) {
+			$recoveryCreated = Marker::requestRecovery();
+
+			return new WP_Error(
+				'login_marker_remove_failed',
+				$recoveryCreated
+					? __( 'The previous login marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing.', 'hide-wp-surface' )
+					: __( 'The previous login marker and emergency recovery file could not be written. Restore the original login route manually before continuing.', 'hide-wp-surface' )
+			);
+		}
+		delete_option( Settings::LOGIN_VERIFIED_OPTION );
+
 		$configurationHash = $this->settings->loginConfigurationHash();
+		if ( ! Marker::enableLoginProbe( $configurationHash ) ) {
+			return new WP_Error(
+				'login_probe_marker',
+				sprintf(
+					/* translators: %s: marker file path. */
+					__( 'Could not create the login verification marker at %s.', 'hide-wp-surface' ),
+					Marker::loginProbePath( $configurationHash )
+				)
+			);
+		}
+		register_shutdown_function(
+			static function () use ( $configurationHash ): void {
+				if ( ! Marker::disableLoginProbe( $configurationHash ) ) {
+					Marker::requestRecovery();
+				}
+			}
+		);
+
 		$token             = wp_generate_password( 40, false, false );
 		$url               = $this->mapper->rewriteUrl(
 			rtrim( (string) get_option( 'siteurl', '' ), '/' ) . '/wp-login.php',
@@ -273,6 +318,9 @@ final readonly class ServerVerifier {
 
 		if ( is_wp_error( $result ) || 204 !== wp_remote_retrieve_response_code( $result )
 			|| ! hash_equals( $token, $header ) ) {
+			if ( ! $this->cleanupLoginProbe( $configurationHash ) ) {
+				return $this->probeCleanupError();
+			}
 			return new WP_Error(
 				'login_route',
 				__( 'The custom login path did not reach wp-login.php through the generated alias rewrite. Replace the generated server block and reload the web server.', 'hide-wp-surface' )
@@ -280,7 +328,33 @@ final readonly class ServerVerifier {
 		}
 
 		if ( ! $this->settings->markLoginVerified( $configurationHash ) ) {
+			if ( ! $this->cleanupLoginProbe( $configurationHash ) ) {
+				return $this->probeCleanupError();
+			}
 			return new WP_Error( 'login_save', __( 'The verified login path could not be saved.', 'hide-wp-surface' ) );
+		}
+
+		if ( ! Marker::enableLogin( $configurationHash ) ) {
+			delete_option( Settings::LOGIN_VERIFIED_OPTION );
+			if ( ! $this->cleanupLoginProbe( $configurationHash ) ) {
+				return $this->probeCleanupError();
+			}
+
+			return new WP_Error(
+				'login_marker',
+				sprintf(
+					/* translators: %s: marker file path. */
+					__( 'Could not create the login activation marker at %s.', 'hide-wp-surface' ),
+					Marker::loginPath( $configurationHash )
+				)
+			);
+		}
+
+		if ( ! $this->cleanupLoginProbe( $configurationHash ) ) {
+			Marker::disableLogin();
+			delete_option( Settings::LOGIN_VERIFIED_OPTION );
+
+			return $this->probeCleanupError();
 		}
 
 		return true;
@@ -336,9 +410,12 @@ final readonly class ServerVerifier {
 			delete_option( self::LOCK_OPTION );
 		}
 
-		$probeModified = is_file( Marker::probePath() ) ? @filemtime( Marker::probePath() ) : false;
-		if ( ! $isFresh && is_int( $probeModified ) && $probeModified < time() - self::LOCK_TTL ) {
-			Marker::disableProbe();
+		if ( ! $isFresh ) {
+			$pathsClean = Marker::disableProbe();
+			$loginClean = Marker::disableLoginProbe();
+			if ( ! $pathsClean || ! $loginClean ) {
+				Marker::requestRecovery();
+			}
 		}
 	}
 
@@ -423,12 +500,14 @@ final readonly class ServerVerifier {
 		}
 
 		foreach ( $urls as $url ) {
-			$result = $this->verifyThemeNotFound( $url );
-			if ( is_wp_error( $result ) ) {
-				return new WP_Error(
-					'original_paths',
-					__( 'An enabled original WordPress path did not reach the theme 404 handler. Replace the older generated server block and reload the web server.', 'hide-wp-surface' )
-				);
+			foreach ( $this->originalPathVariants( $url ) as $variant ) {
+				$result = $this->verifyThemeNotFound( $variant );
+				if ( is_wp_error( $result ) ) {
+					return new WP_Error(
+						'original_paths',
+						__( 'An enabled original WordPress path, including an encoded or duplicate-slash variant, did not reach the theme 404 handler. Replace the generated server block and reload the web server.', 'hide-wp-surface' )
+					);
+				}
 			}
 		}
 
@@ -457,13 +536,76 @@ final readonly class ServerVerifier {
 		return true;
 	}
 
-	private function restorePreviousMarker( bool $hadActiveMarker ): void {
-		Marker::disableProbe();
-		if ( $hadActiveMarker ) {
-			Marker::enable();
-		}
+	private function requestProbeToken(): string {
+		return isset( $_GET['token'] ) && is_string( $_GET['token'] )
+			? sanitize_text_field( wp_unslash( $_GET['token'] ) )
+			: '';
 	}
 
+	private function hasPendingProbe( string $token ): bool {
+		if ( 1 !== preg_match( '/\A[A-Za-z0-9]+\z/D', $token ) ) {
+			return false;
+		}
+
+		$saved = get_transient( 'hwp_probe_' . hash( 'sha256', $token ) );
+
+		return is_string( $saved ) && hash_equals( $saved, $token );
+	}
+
+	private function cleanupPathProbe( string $configurationHash ): bool {
+		if ( Marker::disableProbe( $configurationHash ) ) {
+			return true;
+		}
+
+		Marker::requestRecovery();
+
+		return false;
+	}
+
+	private function cleanupLoginProbe( string $configurationHash ): bool {
+		if ( Marker::disableLoginProbe( $configurationHash ) ) {
+			return true;
+		}
+
+		Marker::requestRecovery();
+
+		return false;
+	}
+
+	private function probeCleanupError(): WP_Error {
+		return new WP_Error(
+			'probe_cleanup',
+			__( 'A verification marker could not be removed. Recovery mode was requested; check filesystem permissions before continuing.', 'hide-wp-surface' )
+		);
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private function originalPathVariants( string $url ): array {
+		$siteUrl = rtrim( (string) get_option( 'siteurl', '' ), '/' );
+		$prefix  = $siteUrl . '/';
+		if ( ! str_starts_with( $url, $prefix ) ) {
+			return array( $url );
+		}
+
+		$relative = substr( $url, strlen( $prefix ) );
+		if ( '' === $relative ) {
+			return array( $url );
+		}
+
+		$encoded = '%' . strtoupper( bin2hex( $relative[0] ) ) . substr( $relative, 1 );
+
+		return array_values(
+			array_unique(
+				array(
+					$url,
+					$prefix . $encoded,
+					$siteUrl . '//' . $relative,
+				)
+			)
+		);
+	}
 
 	private function responseStatus( array|WP_Error $result ): string {
 		if ( is_wp_error( $result ) ) {

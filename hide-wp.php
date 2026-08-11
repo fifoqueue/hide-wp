@@ -3,7 +3,7 @@
  * Plugin Name: Hide WP Surface
  * Plugin URI:  https://github.com/fifoqueue/hide-wp-surface
  * Description: Reduces exposed WordPress paths and removable HTML fingerprints with verified server-side aliases.
- * Version:     0.1.29
+ * Version:     0.2.0
  * Update URI:  https://github.com/fifoqueue/hide-wp-surface
  * Requires at least: 7.0
  * Requires PHP: 8.3
@@ -16,11 +16,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'HIDE_WP_VERSION', '0.1.29' );
+define( 'HIDE_WP_VERSION', '0.2.0' );
 define( 'HIDE_WP_BASENAME', plugin_basename( __FILE__ ) );
-if ( ! defined( 'HIDE_WP_GITHUB_REPOSITORY' ) ) {
-	define( 'HIDE_WP_GITHUB_REPOSITORY', 'fifoqueue/hide-wp-surface' );
-}
 define( 'HIDE_WP_FILE', __FILE__ );
 define( 'HIDE_WP_DIR', plugin_dir_path( __FILE__ ) );
 define( 'HIDE_WP_URL', plugin_dir_url( __FILE__ ) );
@@ -43,18 +40,34 @@ if ( PHP_VERSION_ID < 80300 || version_compare( (string) ( $GLOBALS['wp_version'
 		$markerDirectories[] = rtrim( str_replace( '\\', '/', WP_CONTENT_DIR ), '/' ) . '/hide-wp-surface-runtime';
 	}
 	foreach ( array_unique( $markerDirectories ) as $markerDirectory ) {
-		foreach ( array( 'paths-enabled.php', 'paths-probe.php', 'paths-enabled.flag' ) as $markerFile ) {
+		if ( is_link( $markerDirectory ) ) {
+			$markerRemovalFailed = true;
+			continue;
+		}
+
+		$markerFiles = array( 'paths-enabled.php', 'paths-probe.php', 'paths-enabled.flag' );
+		$hashedFiles = glob( rtrim( $markerDirectory, '/' ) . '/*-*.php', GLOB_NOSORT );
+		if ( is_array( $hashedFiles ) ) {
+			foreach ( $hashedFiles as $hashedFile ) {
+				$basename = basename( $hashedFile );
+				if ( 1 === preg_match( '/\A(?:paths-enabled|paths-probe|login-enabled|login-probe)-[a-f0-9]{64}\.php\z/D', $basename ) ) {
+					$markerFiles[] = $basename;
+				}
+			}
+		}
+
+		foreach ( array_unique( $markerFiles ) as $markerFile ) {
 			$markerPath = rtrim( $markerDirectory, '/' ) . '/' . $markerFile;
-			if ( is_file( $markerPath ) ) {
+			if ( is_file( $markerPath ) || is_link( $markerPath ) ) {
 				@unlink( $markerPath );
-				$markerRemovalFailed = $markerRemovalFailed || is_file( $markerPath );
+				$markerRemovalFailed = $markerRemovalFailed || is_file( $markerPath ) || is_link( $markerPath );
 			}
 		}
 	}
 
 	if ( $markerRemovalFailed ) {
 		$recoveryPath = ABSPATH . '.hide-wp-recovery';
-		if ( ! is_file( $recoveryPath ) ) {
+		if ( ! is_file( $recoveryPath ) && ! is_link( $recoveryPath ) ) {
 			$recoveryHandle = @fopen( $recoveryPath, 'x+b' );
 			if ( false !== $recoveryHandle ) {
 				fclose( $recoveryHandle );
@@ -85,7 +98,6 @@ require_once HIDE_WP_DIR . 'src/HtmlCleaner.php';
 require_once HIDE_WP_DIR . 'src/ServerConfig.php';
 require_once HIDE_WP_DIR . 'src/ServerVerifier.php';
 require_once HIDE_WP_DIR . 'src/AdminPage.php';
-require_once HIDE_WP_DIR . 'src/Updater.php';
 require_once HIDE_WP_DIR . 'src/Plugin.php';
 
 register_activation_hook( __FILE__, array( \HideWp\Plugin::class, 'activate' ) );

@@ -4,17 +4,10 @@ declare(strict_types=1);
 
 namespace HideWp;
 
-use WP_HTML_Tag_Processor;
-
 defined( 'ABSPATH' ) || exit;
 
 final readonly class HtmlCleaner {
-	private const MAX_BUFFER_BYTES = 8_388_608;
-
-	public function __construct(
-		private Settings $settings,
-		private PathMapper $mapper
-	) {
+	public function __construct( private Settings $settings ) {
 	}
 
 	public function boot(): void {
@@ -37,8 +30,6 @@ final readonly class HtmlCleaner {
 			add_filter( 'script_loader_src', array( $this, 'stripCoreVersion' ), PHP_INT_MAX, 2 );
 			add_filter( 'style_loader_src', array( $this, 'stripCoreVersion' ), PHP_INT_MAX, 2 );
 		}
-
-		add_action( 'wp_loaded', array( $this, 'startBuffer' ), 1 );
 	}
 
 	/**
@@ -67,123 +58,5 @@ final readonly class HtmlCleaner {
 		return isset( $query['ver'] ) && is_string( $query['ver'] ) && hash_equals( $coreVersion, $query['ver'] )
 			? remove_query_arg( 'ver', $src )
 			: $src;
-	}
-
-	public function startBuffer(): void {
-		if ( ! $this->shouldBuffer() ) {
-			return;
-		}
-
-		ob_start( array( $this, 'processBuffer' ) );
-	}
-
-	public function processBuffer( string $html ): string {
-		if ( '' === $html || strlen( $html ) > self::MAX_BUFFER_BYTES || ! $this->isHtmlResponse( $html ) ) {
-			return $html;
-		}
-
-		if ( ! $this->settings->loginEnabled() && ! $this->settings->pathsEnabled() ) {
-			return $html;
-		}
-
-		$processor = new WP_HTML_Tag_Processor( $html );
-		$attributes = array(
-			'action',
-			'data-src',
-			'data-srcset',
-			'formaction',
-			'href',
-			'poster',
-			'src',
-			'srcset',
-			'style',
-		);
-
-		while ( $processor->next_tag() ) {
-			foreach ( $attributes as $attribute ) {
-				$value = $processor->get_attribute( $attribute );
-				if ( ! is_string( $value ) || '' === $value ) {
-					continue;
-				}
-
-				$rewritten = 'style' === $attribute
-					? $this->mapper->rewriteEmbeddedPaths( $value )
-					: $this->rewriteAttribute( $value );
-				if ( $rewritten !== $value ) {
-					$processor->set_attribute( $attribute, $rewritten );
-				}
-			}
-		}
-
-		return $processor->get_updated_html();
-	}
-
-	private function shouldBuffer(): bool {
-		if ( wp_doing_ajax() || wp_doing_cron() ) {
-			return false;
-		}
-
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST || defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) {
-			return false;
-		}
-
-		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			return false;
-		}
-
-		$method = isset( $_SERVER['REQUEST_METHOD'] ) && is_string( $_SERVER['REQUEST_METHOD'] )
-			? strtoupper( $_SERVER['REQUEST_METHOD'] )
-			: 'GET';
-
-		if ( $this->pageCacheMayStoreResponse( $method ) ) {
-			return false;
-		}
-
-		return in_array( $method, array( 'GET', 'HEAD', 'POST' ), true );
-	}
-
-	private function pageCacheMayStoreResponse( string $method ): bool {
-		if ( ! in_array( $method, array( 'GET', 'HEAD' ), true ) ) {
-			return false;
-		}
-
-		if ( is_admin() ) {
-			return false;
-		}
-
-		if ( ! defined( 'WP_CACHE' ) || ! WP_CACHE ) {
-			return false;
-		}
-
-		return ! defined( 'DONOTCACHEPAGE' ) || ! DONOTCACHEPAGE;
-	}
-
-	private function isHtmlResponse( string $html ): bool {
-		foreach ( headers_list() as $header ) {
-			if ( str_starts_with( strtolower( $header ), 'content-type:' ) ) {
-				return str_contains( strtolower( $header ), 'text/html' )
-					|| str_contains( strtolower( $header ), 'application/xhtml+xml' );
-			}
-		}
-
-		$prefix = strtolower( substr( ltrim( $html ), 0, 256 ) );
-
-		return str_starts_with( $prefix, '<!doctype html' ) || str_starts_with( $prefix, '<html' );
-	}
-
-	private function rewriteAttribute( string $value ): string {
-		if ( str_starts_with( strtolower( ltrim( $value ) ), 'data:' ) ) {
-			return $value;
-		}
-
-		if ( str_contains( $value, ',' ) || str_contains( $value, ' ' ) ) {
-			return (string) preg_replace_callback(
-				'~(?:https?:)?//[^\s,]+|/[^\s,]+~i',
-				fn ( array $match ): string => $this->mapper->rewriteUrl( $match[0] ),
-				$value
-			);
-		}
-
-		return $this->mapper->rewriteUrl( $value );
 	}
 }

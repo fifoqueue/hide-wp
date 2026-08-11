@@ -3,7 +3,7 @@ Contributors: fifoqueue
 Requires at least: 7.0
 Tested up to: 7.0
 Requires PHP: 8.3
-Stable tag: 0.1.29
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,7 +17,7 @@ Hide WP Surface reduces common WordPress fingerprints and automated requests:
 * Exposes independently selectable verified aliases for wp-admin, wp-content, and wp-includes.
 * Sends original server paths to the active theme's 404 template only after loopback verification succeeds.
 * Sends nonessential readme, license, and sample configuration disclosure files to the theme 404 while aliases are active.
-* Rewrites core, plugin, theme, media, responsive image, redirect, and HTML attribute URLs.
+* Rewrites WordPress-generated core, plugin, theme, media, responsive image, and redirect URLs.
 * Removes optional generator, discovery, pingback, and core version hints.
 * Uses generic login errors to reduce account enumeration feedback.
 * Provides an emergency recovery constant and recovery file.
@@ -29,7 +29,7 @@ Path hiding is not an authentication or authorization boundary. Keep WordPress, 
 * WordPress 7.0 or later.
 * PHP 8.3 or later.
 * HTTPS.
-* Apache 2.4 with mod_rewrite and .htaccess overrides, or a security-patched Nginx build. For upstream Nginx, use 1.30.2/1.31.1 or later.
+* Apache 2.4 with mod_rewrite and .htaccess overrides, or a security-patched Nginx build. For upstream Nginx, use 1.30.4/1.31.3 or later.
 * A single-site installation. Multisite is intentionally unsupported.
 * wp-content must use the same origin and URL directory as the WordPress installation.
 * The WordPress URL directory must contain only ASCII letters, numbers, dots, underscores, tildes, and hyphens.
@@ -49,22 +49,19 @@ The plugin does not edit .htaccess, Nginx configuration, or virtual host files. 
 
 The generated Nginx block uses the rewrite module. Do not deploy it on an upstream Nginx release affected by CVE-2026-9256. The login alias is rewritten directly to wp-login.php so login, SSO, and OIDC plugins run through the native WordPress login bootstrap.
 
+Aliases must receive the same WAF rules, IP restrictions, Basic Auth, rate limits, and cache exclusions as their original paths at every CDN or reverse proxy. Redact the configured alias query key from access logs. The generated origin-server rules re-enter canonical paths, but they cannot configure security products in front of the origin.
 
-== Automatic Updates ==
+== Release Packages ==
 
-Hide WP Surface can check GitHub Releases for updates. Configure the repository and optional GitHub token on Settings > Hide WP Surface. A token is recommended for private repositories or hosts that hit GitHub's unauthenticated API rate limit.
+The plugin does not download or install code from GitHub at runtime. Install updates from a trusted, integrity-verified package source.
 
-To publish an update with the included GitHub Actions workflow:
+Maintainers can publish a package with the included GitHub Actions workflow:
 
 1. Bump the `Version` header in `hide-wp.php`, `HIDE_WP_VERSION`, and the `Stable tag` in `readme.txt`.
 2. Add a changelog entry for the new version.
 3. Commit the change and push it to `main` or `master`.
-4. The workflow reads the plugin version, creates the matching tag such as `v0.1.20`, builds `hide-wp-surface.zip`, and uploads it to the GitHub Release.
+4. The workflow reads the plugin version, creates the matching tag such as `v0.2.0`, builds `hide-wp-surface.zip` and its SHA-256 checksum, and uploads both to the GitHub Release.
 5. If the matching version tag already exists, the workflow fails so an existing release is not overwritten accidentally.
-
-The updater prefers release assets named `hide-wp-surface.zip`, `hide-wp-master.zip`, or `hide-wp.zip`, and otherwise uses the first `.zip` release asset. Commits update WordPress only after the workflow creates a versioned GitHub Release with a ZIP asset.
-
-`HIDE_WP_GITHUB_REPOSITORY`, `HIDE_WP_GITHUB_TOKEN`, and `HIDE_WP_DISABLE_GITHUB_UPDATER` constants are still honored for operators who need environment-level overrides, but the plugin settings are the normal configuration path.
 
 == Emergency Recovery ==
 
@@ -78,15 +75,33 @@ The generated server rules cannot read a PHP constant. They check the recovery f
 
 == Compatibility Notes ==
 
-Plugins or themes that hard-code original WordPress URLs in opaque JavaScript, custom JSON, or third-party caches may need their own URL filters or cache purge. Verify changes on staging before production.
+Plugins or themes that hard-code original WordPress URLs in opaque HTML, JavaScript, custom JSON, or third-party caches may need their own URL filters or cache purge. Verify changes on staging before production. The plugin intentionally avoids whole-response output buffering.
 
 The plugin intentionally does not disable REST, XML-RPC, AJAX, cron, feeds, media, updates, or plugin/theme APIs because doing so can break normal WordPress behavior.
 
 == Privacy ==
 
-The plugin sends no telemetry. Route verification requests are loopback requests to the configured WordPress origin. When GitHub update checks are enabled, the plugin contacts the configured GitHub repository and GitHub API to retrieve release metadata and update packages.
+The plugin sends no telemetry and performs no third-party update checks. Route verification requests are loopback requests only to the configured WordPress origin.
+
+== Upgrade Notice ==
+
+= 0.2.0 =
+This security update disables markers created by older releases. After updating, replace the generated server block and verify the login and path aliases again from the standard wp-admin path. The runtime GitHub updater and Nginx FastCGI compatibility mode were removed.
 
 == Changelog ==
+
+= 0.2.0 =
+* Bound activation and probe markers to the exact configuration hash so an old verified marker cannot enable changed paths or login settings.
+* Disabled active aliases before saving path changes and made every login alias require its own verified marker.
+* Authenticated the original-path server handoff, removed unauthenticated internal flags, disabled their caching, and separated internal capabilities by login, admin, content, and includes purpose.
+* Matched normalized Nginx URIs and added verification for percent-encoded and duplicate-slash original-path bypasses.
+* Removed the direct Nginx FastCGI compatibility blocks so aliases re-enter canonical locations and retain origin access controls.
+* Removed unsigned runtime GitHub update installation, third-party updater code, stored GitHub credentials, and outbound update telemetry.
+* Removed whole-response HTML buffering to avoid response-sized memory amplification.
+* Expire authentication cookies from old admin alias paths and clean their tracked paths during uninstall.
+* Hardened marker and recovery files against symlink writes, modernized Apache deny rules, and made verification-probe cleanup fail closed.
+* Registered the unauthenticated AJAX route probe only while a matching one-time verification probe exists.
+* Pinned every third-party GitHub Actions step to a full commit SHA.
 
 = 0.1.29 =
 * Made generated Nginx aliases follow the activation and probe markers so disabling path aliases stops the aliases as well as original-path blocking.

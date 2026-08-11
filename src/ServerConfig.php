@@ -11,12 +11,17 @@ final readonly class ServerConfig {
 	}
 
 	public function apache(): string {
-		$aliases  = $this->relativeAliasSpecs();
-		$marker   = str_replace( '\\', '/', Marker::path() );
-		$probe    = str_replace( '\\', '/', Marker::probePath() );
-		$recovery = str_replace( '\\', '/', Marker::recoveryPath() );
-		$key      = $this->settings->aliasQueryKey();
-		$token    = $this->settings->aliasQueryToken();
+		$configurationHash = $this->settings->configurationHash();
+		$loginHash         = $this->settings->loginConfigurationHash();
+		$aliases           = $this->relativeAliasSpecs();
+		$marker            = $this->quoteApache( str_replace( '\\', '/', Marker::path( $configurationHash ) ) );
+		$probe             = $this->quoteApache( str_replace( '\\', '/', Marker::probePath( $configurationHash ) ) );
+		$loginMarker       = $this->quoteApache( str_replace( '\\', '/', Marker::loginPath( $loginHash ) ) );
+		$loginProbe        = $this->quoteApache( str_replace( '\\', '/', Marker::loginProbePath( $loginHash ) ) );
+		$recovery          = $this->quoteApache( str_replace( '\\', '/', Marker::recoveryPath() ) );
+		$key               = $this->settings->aliasQueryKey();
+		$token             = $this->settings->aliasRequestToken( 'login' );
+		$originalGuard     = $this->settings->originalPathGuard();
 
 		$lines = array(
 			'# BEGIN Hide WP Surface',
@@ -28,6 +33,8 @@ final readonly class ServerConfig {
 		if ( $this->settings->getBool( 'login_enabled' ) ) {
 			$lines[] = '# Login alias. Rewrite directly to wp-login.php so login/OIDC plugins see the native login bootstrap.';
 			$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
+			$lines[] = sprintf( 'RewriteCond "%s" -f [OR]', $loginMarker );
+			$lines[] = sprintf( 'RewriteCond "%s" -f', $loginProbe );
 			$lines[] = sprintf(
 				'RewriteRule ^%s/?$ wp-login.php?%s=%s [END,QSA,NC]',
 				preg_quote( basename( $this->mapper->targetPath( 'login' ) ), '#' ),
@@ -40,17 +47,20 @@ final readonly class ServerConfig {
 		$lines[] = '# Internal aliases. Keep these rules before the standard WordPress block.';
 
 		foreach ( $aliases as $alias ) {
-			$source = $alias['source'];
-			$target = $alias['target'];
+			$source     = $alias['source'];
+			$target     = $alias['target'];
+			$aliasToken = $this->settings->aliasRequestToken( $alias['type'] );
 
 			if ( 'admin' === $alias['type'] ) {
 				$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
 				$lines[] = sprintf( 'RewriteCond "%s" -f [OR]', $marker );
 				$lines[] = sprintf( 'RewriteCond "%s" -f', $probe );
 				$lines[] = sprintf(
-					'RewriteRule ^%1$s/?$ %2$s/index.php [END,QSA,NC]',
+					'RewriteRule ^%1$s/?$ %2$s/index.php?%3$s=%4$s [END,QSA,NC]',
 					preg_quote( $target, '#' ),
-					$source
+					$source,
+					$key,
+					$aliasToken
 				);
 			}
 
@@ -59,10 +69,12 @@ final readonly class ServerConfig {
 			$lines[] = sprintf( 'RewriteCond "%s" -f', $probe );
 			$lines[] = sprintf(
 				'admin' === $alias['type']
-					? 'RewriteRule ^%1$s/(.+)$ %2$s/$1 [END,QSA,NC]'
-					: 'RewriteRule ^%1$s(?:/(.*))?/?$ %2$s/$1 [END,QSA,NC]',
+					? 'RewriteRule ^%1$s/(.+)$ %2$s/$1?%3$s=%4$s [END,QSA,NC]'
+					: 'RewriteRule ^%1$s(?:/(.*))?/?$ %2$s/$1?%3$s=%4$s [END,QSA,NC]',
 				preg_quote( $target, '#' ),
-				$source
+				$source,
+				$key,
+				$aliasToken
 			);
 		}
 
@@ -71,14 +83,14 @@ final readonly class ServerConfig {
 		foreach ( $aliases as $alias ) {
 			$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 			$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-			$lines[] = sprintf( 'RewriteRule ^(%s(?:/.*)?)$ index.php?hide_wp_original_path=$1 [END,QSA,NC]', preg_quote( $alias['source'], '#' ) );
+			$lines[] = sprintf( 'RewriteRule ^(%s(?:/.*)?)$ index.php?hide_wp_original_path=$1&hide_wp_original_guard=%s [END,QSA,NC]', preg_quote( $alias['source'], '#' ), $originalGuard );
 		}
 
 		$lines[] = '';
 		$lines[] = '# Send nonessential core disclosure files to the theme 404.';
 		$lines[] = sprintf( 'RewriteCond "%s" -f', $marker );
 		$lines[] = sprintf( 'RewriteCond "%s" !-f', $recovery );
-		$lines[] = 'RewriteRule ^(readme\.html|license\.txt|wp-config-sample\.php)$ index.php?hide_wp_original_path=$1 [END,QSA,NC]';
+		$lines[] = sprintf( 'RewriteRule ^(readme\.html|license\.txt|wp-config-sample\.php)$ index.php?hide_wp_original_path=$1&hide_wp_original_guard=%s [END,QSA,NC]', $originalGuard );
 
 		$lines[] = '</IfModule>';
 		$lines[] = '# END Hide WP Surface';
@@ -87,18 +99,21 @@ final readonly class ServerConfig {
 	}
 
 	public function nginx(): string {
-		$aliases  = $this->absoluteAliasSpecs();
-		$marker   = $this->quoteNginx( str_replace( '\\', '/', Marker::path() ) );
-		$probe    = $this->quoteNginx( str_replace( '\\', '/', Marker::probePath() ) );
-		$recovery = $this->quoteNginx( str_replace( '\\', '/', Marker::recoveryPath() ) );
-		$blocked  = array_merge( array_column( $aliases, 'source' ), $this->absoluteDisclosurePaths() );
-		$sources  = implode( '|', array_map( static fn ( string $path ): string => preg_quote( $path, '~' ), $blocked ) );
-		$login       = preg_quote( $this->mapper->targetPath( 'login' ), '~' );
-		$sourceLogin = $this->mapper->sourcePath( 'login' );
-		$key         = $this->settings->aliasQueryKey();
-		$token       = $this->settings->aliasQueryToken();
-		$sitePath    = $this->mapper->parentPath( $sourceLogin );
-		$index       = $sitePath . '/index.php';
+		$configurationHash = $this->settings->configurationHash();
+		$loginHash         = $this->settings->loginConfigurationHash();
+		$aliases           = $this->absoluteAliasSpecs();
+		$marker            = $this->quoteNginx( str_replace( '\\', '/', Marker::path( $configurationHash ) ) );
+		$probe             = $this->quoteNginx( str_replace( '\\', '/', Marker::probePath( $configurationHash ) ) );
+		$loginMarker       = $this->quoteNginx( str_replace( '\\', '/', Marker::loginPath( $loginHash ) ) );
+		$loginProbe        = $this->quoteNginx( str_replace( '\\', '/', Marker::loginProbePath( $loginHash ) ) );
+		$recovery          = $this->quoteNginx( str_replace( '\\', '/', Marker::recoveryPath() ) );
+		$login             = preg_quote( $this->mapper->targetPath( 'login' ), '~' );
+		$sourceLogin       = $this->mapper->sourcePath( 'login' );
+		$key               = $this->settings->aliasQueryKey();
+		$token             = $this->settings->aliasRequestToken( 'login' );
+		$originalGuard     = $this->settings->originalPathGuard();
+		$sitePath          = $this->mapper->parentPath( $sourceLogin );
+		$index             = $sitePath . '/index.php';
 
 		$lines = array(
 			'# BEGIN Hide WP Surface',
@@ -115,25 +130,29 @@ final readonly class ServerConfig {
 
 		if ( $this->settings->getBool( 'login_enabled' ) ) {
 			$lines[] = '# Login alias. Rewrite directly to wp-login.php so login/OIDC plugins see the native login bootstrap.';
-			$lines[] = sprintf( 'if (!-f "%s") { rewrite ^%s/?$ %s?%s=%s&$args last; }', $recovery, $login, $sourceLogin, $key, $token );
+			$lines[] = 'set $hwp_login_enabled 0;';
+			$lines[] = sprintf( 'if (-f "%s") { set $hwp_login_enabled 1; }', $loginMarker );
+			$lines[] = sprintf( 'if (-f "%s") { set $hwp_login_enabled 1; }', $loginProbe );
+			$lines[] = sprintf( 'if (-f "%s") { set $hwp_login_enabled 0; }', $recovery );
+			$lines[] = sprintf( 'if ($hwp_login_enabled = 1) { rewrite ^%s/?$ %s?%s=%s&$args last; }', $login, $sourceLogin, $key, $token );
 			$lines[] = '';
 		}
 
-		$lines[] = '# Internal aliases. The wp-admin alias supports standard rewrite mode and FastCGI compatibility mode.';
-		$lines[] = '# Place generated location blocks before generic PHP/static locations.';
+		$lines[] = '# Internal aliases. Re-enter the canonical paths so their existing access control, WAF, rate-limit, cache, and PHP rules still apply.';
 
 		foreach ( $aliases as $alias ) {
-			$source = $alias['source'];
-			$target = $alias['target'];
+			$source        = $alias['source'];
+			$target        = $alias['target'];
 			$targetPattern = preg_quote( $target, '~' );
 
 			if ( 'admin' === $alias['type'] ) {
-				$lines = array_merge( $lines, $this->nginxAdminAliasLocations( $source, $target ) );
+				$lines = array_merge( $lines, $this->nginxAdminAliasRewriteRules( $source, $target ) );
 				continue;
 			}
 
-			$lines[] = sprintf( 'if ($hwp_aliases_enabled = 1) { rewrite ^%s/?$ %s/$is_args$args last; }', $targetPattern, $source );
-			$lines[] = sprintf( 'if ($hwp_aliases_enabled = 1) { rewrite ^%s/(.*)$ %s/$1$is_args$args last; }', $targetPattern, $source );
+			$aliasToken = $this->settings->aliasRequestToken( $alias['type'] );
+			$lines[]    = sprintf( 'if ($hwp_aliases_enabled = 1) { rewrite ^%s/?$ %s/?%s=%s&$args last; }', $targetPattern, $source, $key, $aliasToken );
+			$lines[] = sprintf( 'if ($hwp_aliases_enabled = 1) { rewrite ^%s/(.*)$ %s/$1?%s=%s&$args last; }', $targetPattern, $source, $key, $aliasToken );
 		}
 
 		$lines[] = '';
@@ -145,9 +164,25 @@ final readonly class ServerConfig {
 		$lines[] = '# Send original WordPress paths to WordPress so the active theme renders its 404 template.';
 		$lines[] = 'set $hwp_original_path 0;';
 		$lines[] = 'set $hwp_original_path_value "";';
-		$lines[] = sprintf( 'if ($request_uri ~* "^((?:%s)(?:[/?]|$)[^?]*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; }', $sources );
-		$lines[] = 'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path";';
-		$lines[] = sprintf( 'if ($hwp_block_original = "11") { rewrite ^ %s?hide_wp_original_path=$hwp_original_path_value&$args last; }', $index );
+		$lines[] = 'set $hwp_original_path_type none;';
+		$lines[] = 'set $hwp_alias_origin_type none;';
+		$lines[] = '# Match the normalized URI so percent encoding, dot segments, and duplicate slashes cannot bypass blocking.';
+		foreach ( $aliases as $alias ) {
+			$sourcePattern = $this->nginxPathPattern( $alias['source'] );
+			$targetPattern = preg_quote( $alias['target'], '~' );
+			$lines[] = sprintf( 'if ($uri ~* "^((?:%s)(?:/|$).*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; set $hwp_original_path_type %s; }', $sourcePattern, $alias['type'] );
+			$lines[] = sprintf( 'if ($request_uri ~* "^%s(?:/|[?]|$)") { set $hwp_alias_origin_type %s; }', $targetPattern, $alias['type'] );
+		}
+
+		$disclosures = implode( '|', array_map( array( $this, 'nginxPathPattern' ), $this->absoluteDisclosurePaths() ) );
+		$lines[] = sprintf( 'if ($uri ~* "^((?:%s)(?:/|$).*)") { set $hwp_original_path 1; set $hwp_original_path_value $1; set $hwp_original_path_type disclosure; }', $disclosures );
+		$lines[] = 'set $hwp_alias_path_pair "$hwp_alias_origin_type:$hwp_original_path_type";';
+		$lines[] = 'set $hwp_internal_alias 0;';
+		foreach ( $aliases as $alias ) {
+			$lines[] = sprintf( 'if ($hwp_alias_path_pair = "%1$s:%1$s") { set $hwp_internal_alias 1; }', $alias['type'] );
+		}
+		$lines[] = 'set $hwp_block_original "$hwp_paths_enabled$hwp_original_path$hwp_internal_alias";';
+		$lines[] = sprintf( 'if ($hwp_block_original = "110") { rewrite ^ %s?hide_wp_original_path=$hwp_original_path_value&hide_wp_original_guard=%s&$args last; }', $index, $originalGuard );
 		$lines[] = '# END Hide WP Surface';
 
 		return implode( "\n", $lines );
@@ -157,80 +192,17 @@ final readonly class ServerConfig {
 	/**
 	 * @return list<string>
 	 */
-	private function nginxAdminAliasLocations( string $source, string $target ): array {
-		if ( 'fastcgi' === $this->settings->nginxAdminAliasMode() ) {
-			return $this->nginxAdminAliasFastcgiLocations( $source, $target );
-		}
-
-		return $this->nginxAdminAliasRewriteRules( $source, $target );
-	}
-
-	/**
-	 * @return list<string>
-	 */
 	private function nginxAdminAliasRewriteRules( string $source, string $target ): array {
-		$key = $this->settings->aliasQueryKey();
-		$token = $this->settings->aliasQueryToken();
+		$key           = $this->settings->aliasQueryKey();
+		$token         = $this->settings->aliasRequestToken( 'admin' );
 		$targetPattern = preg_quote( $target, '~' );
 
 		return array(
-			'# wp-admin alias: standard rewrite mode. Uses the site PHP handler and adds an internal alias flag.',
+			'# wp-admin alias: uses the site PHP handler and adds an internal alias flag.',
 			sprintf( 'if ($hwp_aliases_enabled = 1) { rewrite ^%s/?$ %s/index.php?%s=%s&$args last; }', $targetPattern, $source, $key, $token ),
 			sprintf( 'if ($hwp_aliases_enabled = 1) { rewrite ^%s/(.*)$ %s/$1?%s=%s&$args last; }', $targetPattern, $source, $key, $token ),
 		);
 	}
-
-	/**
-	 * @return list<string>
-	 */
-	private function nginxAdminAliasFastcgiLocations( string $source, string $target ): array {
-		$root = $this->quoteNginx( rtrim( str_replace( '\\', '/', ABSPATH ), '/' ) );
-		$pass = $this->quoteNginx( $this->settings->getString( 'nginx_fastcgi_pass' ) );
-		if ( '' === $pass ) {
-			$pass = '__SET_NGINX_FASTCGI_PASS_IN_HIDE_WP_SETTINGS__';
-		}
-
-		$targetPattern = preg_quote( $target, '~' );
-		$sourcePrefix = rtrim( $source, '/' );
-
-		return array(
-			'# wp-admin alias: FastCGI compatibility mode. Use only when standard rewrite mode is swallowed by the WordPress front controller.',
-			'# Keep these blocks before any generic PHP/static location. Set Nginx FastCGI pass in plugin settings.',
-			sprintf( 'location = %s {', $target ),
-			'    if ($hwp_aliases_enabled = 0) { return 404; }',
-			sprintf( '    return 301 %s/;', $target ),
-			'}',
-			sprintf( 'location = %s/ {', $target ),
-			'    if ($hwp_aliases_enabled = 0) { return 404; }',
-			'    include fastcgi_params;',
-			sprintf( '    fastcgi_param SCRIPT_FILENAME %s/wp-admin/index.php;', $root ),
-			sprintf( '    fastcgi_param SCRIPT_NAME %s/index.php;', $sourcePrefix ),
-			sprintf( '    fastcgi_param PHP_SELF %s/index.php;', $sourcePrefix ),
-			sprintf( '    fastcgi_param DOCUMENT_ROOT %s;', $root ),
-			sprintf( '    fastcgi_pass %s;', $pass ),
-			'}',
-			sprintf( 'location ~ ^%s/(?<hwp_admin_script>[A-Za-z0-9_./-]+\.php)$ {', $targetPattern ),
-			'    if ($hwp_aliases_enabled = 0) { return 404; }',
-			'    if ($hwp_admin_script ~ "\.\.") { return 404; }',
-			sprintf( '    if (!-f %s/wp-admin/$hwp_admin_script) { return 404; }', $root ),
-			'    include fastcgi_params;',
-			sprintf( '    fastcgi_param SCRIPT_FILENAME %s/wp-admin/$hwp_admin_script;', $root ),
-			sprintf( '    fastcgi_param SCRIPT_NAME %s/$hwp_admin_script;', $sourcePrefix ),
-			sprintf( '    fastcgi_param PHP_SELF %s/$hwp_admin_script;', $sourcePrefix ),
-			sprintf( '    fastcgi_param DOCUMENT_ROOT %s;', $root ),
-			sprintf( '    fastcgi_pass %s;', $pass ),
-			'}',
-			'# wp-admin alias: serve admin static assets directly from wp-admin.',
-			'# Keep this regex location before generic static locations.',
-			sprintf( 'location ~ ^%s/(?!.*\.php$)(?<hwp_admin_asset>[A-Za-z0-9_./-]+)$ {', $targetPattern ),
-			'    if ($hwp_aliases_enabled = 0) { return 404; }',
-			'    if ($hwp_admin_asset ~ "\.\.") { return 404; }',
-			sprintf( '    rewrite ^%s/(.*)$ /wp-admin/$1 break;', $targetPattern ),
-			sprintf( '    root %s;', $root ),
-			'}',
-		);
-	}
-
 
 	/**
 	 * @return list<array{type: string, source: string, target: string}>
@@ -276,7 +248,20 @@ final readonly class ServerConfig {
 		);
 	}
 
+	private function nginxPathPattern( string $path ): string {
+		$segments = array_values( array_filter( explode( '/', trim( $path, '/' ) ), 'strlen' ) );
+
+		return '/+' . implode(
+			'/+',
+			array_map( static fn ( string $segment ): string => preg_quote( $segment, '~' ), $segments )
+		);
+	}
+
 	private function quoteNginx( string $value ): string {
+		return str_replace( array( '\\', '"' ), array( '\\\\', '\\"' ), $value );
+	}
+
+	private function quoteApache( string $value ): string {
 		return str_replace( array( '\\', '"' ), array( '\\\\', '\\"' ), $value );
 	}
 }

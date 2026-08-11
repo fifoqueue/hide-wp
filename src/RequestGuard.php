@@ -7,7 +7,9 @@ namespace HideWp;
 defined( 'ABSPATH' ) || exit;
 
 final class RequestGuard {
-	private bool $hasAliasQueryFlag = false;
+	private string $aliasQueryPurpose = '';
+	private bool $hasOriginalPathFlag = false;
+	private string $serverOriginalPath = '';
 
 	public function __construct(
 		private Settings $settings,
@@ -17,7 +19,8 @@ final class RequestGuard {
 
 	public function boot(): void {
 		$this->preventLoginCaching();
-		$this->removeAliasQueryFlag();
+		$this->removeInternalQueryFlags();
+		$this->preventInternalHandoffCaching();
 
 		add_action( 'wp_loaded', array( $this, 'handle' ), 999999 );
 
@@ -56,24 +59,47 @@ final class RequestGuard {
 			return true;
 		}
 
-		return $this->hasValidAliasQueryFlag()
+		return $this->hasValidAliasQueryPurpose( 'login' )
 			&& $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'login' ) );
 	}
 
-	private function removeAliasQueryFlag(): void {
-		if ( ! $this->hasValidAliasQueryFlag() ) {
+	private function removeInternalQueryFlags(): void {
+		$key = $this->settings->aliasQueryKey();
+		$this->aliasQueryPurpose   = $this->detectAliasQueryPurpose();
+		$this->hasOriginalPathFlag = $this->hasValidOriginalPathFlag();
+		if ( $this->hasOriginalPathFlag ) {
+			$paths = $this->rawQueryValues( 'hide_wp_original_path' );
+			if ( array() !== $paths ) {
+				$this->serverOriginalPath = $paths[0];
+			} elseif ( isset( $_GET['hide_wp_original_path'] ) && is_string( $_GET['hide_wp_original_path'] ) ) {
+				$this->serverOriginalPath = wp_unslash( $_GET['hide_wp_original_path'] );
+			}
+		}
+		if ( '' === $this->aliasQueryPurpose && ! $this->hasOriginalPathFlag ) {
 			return;
 		}
 
-		$key = $this->settings->aliasQueryKey();
-		$this->hasAliasQueryFlag = true;
-
-		if ( ! defined( 'HIDE_WP_ALIAS_REQUEST' ) ) {
+		if ( '' !== $this->aliasQueryPurpose && ! defined( 'HIDE_WP_ALIAS_REQUEST' ) ) {
 			define( 'HIDE_WP_ALIAS_REQUEST', true );
 		}
 
-		unset( $_GET[ $key ], $_REQUEST[ $key ] );
-		$queryString = $this->currentQueryString( array( $key ) );
+		$removeKeys = array();
+		if ( '' !== $this->aliasQueryPurpose ) {
+			unset( $_GET[ $key ], $_REQUEST[ $key ] );
+			$removeKeys[] = $key;
+		}
+
+		if ( $this->hasOriginalPathFlag ) {
+			unset(
+				$_GET['hide_wp_original_guard'],
+				$_REQUEST['hide_wp_original_guard'],
+				$_GET['hide_wp_original_path'],
+				$_REQUEST['hide_wp_original_path']
+			);
+			$removeKeys[] = 'hide_wp_original_guard';
+			$removeKeys[] = 'hide_wp_original_path';
+		}
+		$queryString = $this->currentQueryString( $removeKeys );
 		$_SERVER['QUERY_STRING'] = $queryString;
 
 		$requestUri = isset( $_SERVER['REQUEST_URI'] ) && is_string( $_SERVER['REQUEST_URI'] )
@@ -83,6 +109,7 @@ final class RequestGuard {
 
 		if (
 			'' !== $path
+			&& $this->isAliasPurpose( 'login' )
 			&& $this->settings->loginRequested()
 			&& $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) )
 		) {
@@ -97,13 +124,95 @@ final class RequestGuard {
 		}
 	}
 
-	private function hasValidAliasQueryFlag(): bool {
+	private function detectAliasQueryPurpose(): string {
 		$key = $this->settings->aliasQueryKey();
-		$value = isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] )
-			? wp_unslash( $_GET[ $key ] )
-			: '';
+		$values = $this->rawQueryValues( $key );
+		if ( array() === $values && isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] ) ) {
+			$values[] = wp_unslash( $_GET[ $key ] );
+		}
 
-		return '' !== $value && hash_equals( $this->settings->aliasQueryToken(), $value );
+		if ( array() === $values ) {
+			return '';
+		}
+
+		$matched = '';
+		foreach ( $values as $value ) {
+			foreach ( array_merge( Settings::PATH_TYPES, array( 'login' ) ) as $purpose ) {
+				if ( ! hash_equals( $this->settings->aliasRequestToken( $purpose ), $value ) ) {
+					continue;
+				}
+
+				if ( '' !== $matched && ! hash_equals( $matched, $purpose ) ) {
+					return '';
+				}
+
+				$matched = $purpose;
+			}
+		}
+
+		return $matched;
+	}
+
+	private function hasValidAliasQueryPurpose( string $purpose ): bool {
+		return hash_equals( $purpose, $this->detectAliasQueryPurpose() );
+	}
+
+	private function isAliasPurpose( string $purpose ): bool {
+		return hash_equals( $purpose, $this->aliasQueryPurpose );
+	}
+
+	private function hasValidOriginalPathFlag(): bool {
+		$values = $this->rawQueryValues( 'hide_wp_original_guard' );
+		if ( array() === $values && isset( $_GET['hide_wp_original_guard'] ) && is_string( $_GET['hide_wp_original_guard'] ) ) {
+			$values[] = wp_unslash( $_GET['hide_wp_original_guard'] );
+		}
+
+		foreach ( $values as $value ) {
+			if ( hash_equals( $this->settings->originalPathGuard(), $value ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Read raw query values so an attacker-supplied duplicate cannot overwrite
+	 * the server-appended capability during PHP query parsing.
+	 *
+	 * @return list<string>
+	 */
+	private function rawQueryValues( string $expectedKey ): array {
+		$queryString = isset( $_SERVER['QUERY_STRING'] ) && is_string( $_SERVER['QUERY_STRING'] )
+			? $_SERVER['QUERY_STRING']
+			: '';
+		$values = array();
+
+		foreach ( explode( '&', $queryString ) as $parameter ) {
+			$separator = strpos( $parameter, '=' );
+			$rawKey    = false === $separator ? $parameter : substr( $parameter, 0, $separator );
+			$key       = rawurldecode( str_replace( '+', ' ', $rawKey ) );
+			if ( ! hash_equals( $expectedKey, $key ) ) {
+				continue;
+			}
+
+			$rawValue = false === $separator ? '' : substr( $parameter, $separator + 1 );
+			$values[] = rawurldecode( str_replace( '+', ' ', $rawValue ) );
+		}
+
+		return $values;
+	}
+
+	private function preventInternalHandoffCaching(): void {
+		if ( '' === $this->aliasQueryPurpose && ! $this->hasOriginalPathFlag ) {
+			return;
+		}
+
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+
+		nocache_headers();
 	}
 
 	public function handle(): void {
@@ -117,19 +226,19 @@ final class RequestGuard {
 			$isLoginAliasPath = $this->isExactPath( $path, $this->mapper->targetPath( 'login' ) );
 			$isLoginSourcePath = $this->hasPathPrefix( $path, $this->mapper->sourcePath( 'login' ) );
 
-			if ( $isLoginAliasPath || ( $this->hasAliasQueryFlag && $isLoginSourcePath ) ) {
+			if ( $isLoginAliasPath || ( $this->isAliasPurpose( 'login' ) && $isLoginSourcePath ) ) {
 				$this->maybeServeLoginProbe();
 			}
 
 			if ( $isLoginAliasPath ) {
-				if ( $this->hasAliasQueryFlag ) {
+				if ( $this->isAliasPurpose( 'login' ) ) {
 					return;
 				}
 
 				$this->serveLogin();
 			}
 
-			if ( $this->settings->loginEnabled() && $isLoginSourcePath && ! $this->hasAliasQueryFlag ) {
+			if ( $this->settings->loginEnabled() && $isLoginSourcePath && ! $this->isAliasPurpose( 'login' ) ) {
 				$this->serveThemeNotFound();
 			}
 		}
@@ -145,9 +254,24 @@ final class RequestGuard {
 			$this->serveThemeNotFound();
 		}
 
-		if ( $this->settings->pathsEnabled() && $this->isProtectedOriginalPath( $path ) && ! $this->hasAliasQueryFlag ) {
+		if (
+			$this->settings->pathsEnabled()
+			&& $this->isProtectedOriginalPath( $path )
+			&& ( $this->hasOriginalPathFlag || ! $this->isAllowedInternalAliasRequest( $path ) )
+		) {
 			$this->serveThemeNotFound();
 		}
+	}
+
+	private function isAllowedInternalAliasRequest( string $path ): bool {
+		$type = $this->aliasQueryPurpose;
+		if ( ! in_array( $type, Settings::PATH_TYPES, true )
+			|| ! $this->settings->activeAliasEnabled( $type )
+			|| ! $this->hasPathPrefix( $path, $this->mapper->sourcePath( $type ) ) ) {
+			return false;
+		}
+
+		return 'admin' !== $type || $this->isAdminBootstrapActive();
 	}
 
 	private function serveLogin(): never {
@@ -238,28 +362,25 @@ final class RequestGuard {
 	 * @param list<string> $removeKeys
 	 */
 	private function currentQueryString( array $removeKeys = array() ): string {
-		$parameters = wp_unslash( $_GET );
-		if ( ! is_array( $parameters ) ) {
-			return '';
-		}
-
-		foreach ( $removeKeys as $key ) {
-			unset( $parameters[ $key ] );
-		}
-
-		if ( array() !== $parameters ) {
-			return http_build_query( $parameters, '', '&', PHP_QUERY_RFC3986 );
-		}
-
 		$queryString = isset( $_SERVER['QUERY_STRING'] ) && is_string( $_SERVER['QUERY_STRING'] )
 			? $_SERVER['QUERY_STRING']
 			: '';
 
-		if ( array() === $removeKeys ) {
+		if ( array() === $removeKeys || '' === $queryString ) {
 			return $queryString;
 		}
 
-		return '';
+		$kept = array();
+		foreach ( explode( '&', $queryString ) as $parameter ) {
+			$separator = strpos( $parameter, '=' );
+			$rawKey    = false === $separator ? $parameter : substr( $parameter, 0, $separator );
+			$key       = rawurldecode( str_replace( '+', ' ', $rawKey ) );
+			if ( ! in_array( $key, $removeKeys, true ) ) {
+				$kept[] = $parameter;
+			}
+		}
+
+		return implode( '&', $kept );
 	}
 
 	private function maybeServeLoginProbe(): void {
@@ -267,7 +388,7 @@ final class RequestGuard {
 			? wp_unslash( $_GET['hide_wp_login_probe'] )
 			: '';
 
-		if ( ! $this->hasAliasQueryFlag || 1 !== preg_match( '/\A[a-zA-Z0-9]{32,64}\z/D', $token ) ) {
+		if ( ! $this->isAliasPurpose( 'login' ) || 1 !== preg_match( '/\A[a-zA-Z0-9]{32,64}\z/D', $token ) ) {
 			return;
 		}
 
@@ -400,9 +521,11 @@ final class RequestGuard {
 	}
 
 	private function serverProvidedOriginalPath(): string {
-		$value = isset( $_GET['hide_wp_original_path'] ) && is_string( $_GET['hide_wp_original_path'] )
-			? wp_unslash( $_GET['hide_wp_original_path'] )
-			: '';
+		if ( ! $this->hasOriginalPathFlag ) {
+			return '';
+		}
+
+		$value = $this->serverOriginalPath;
 
 		if ( '' === $value || str_contains( $value, "\0" ) ) {
 			return '';

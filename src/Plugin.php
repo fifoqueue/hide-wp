@@ -19,7 +19,7 @@ final class Plugin {
 	public static function activate( bool $networkWide = false ): void {
 		unset( $networkWide );
 
-		if ( ! Marker::disable() ) {
+		if ( ! Marker::disableAll() ) {
 			$recoveryCreated = Marker::requestRecovery();
 			wp_die(
 				$recoveryCreated
@@ -47,17 +47,29 @@ final class Plugin {
 	}
 
 	public static function deactivate(): void {
-		if ( ! Marker::disable() ) {
+		if ( ! Marker::disableAll() ) {
 			Marker::requestRecovery();
 		}
-		( new Settings() )->clearPathVerification();
+		$settings = new Settings();
+		( new AuthCookieBridge( $settings, new PathMapper( $settings ) ) )->clearAliasAuthCookies();
+		$settings->clearPathVerification();
 		delete_option( Settings::LOGIN_VERIFIED_OPTION );
 		delete_option( 'hide_wp_operation_lock' );
 	}
 
 	public function boot(): void {
+		if ( ! Marker::removeLegacyMarkers() ) {
+			Marker::requestRecovery();
+		}
+
 		$settings = new Settings();
 		$settings->aliasQueryToken();
+		$settings->removeRetiredData();
+		add_filter( 'site_transient_update_plugins', array( $settings, 'removeRetiredUpdateOffer' ), PHP_INT_MAX );
+		add_filter( 'pre_set_site_transient_update_plugins', array( $settings, 'removeRetiredUpdateOffer' ), PHP_INT_MAX );
+		if ( ! Marker::removeStaleMarkers( $settings->configurationHash(), $settings->loginConfigurationHash() ) ) {
+			Marker::requestRecovery();
+		}
 		$mapper   = new PathMapper( $settings );
 		$verifier = new ServerVerifier( $settings, $mapper );
 		$cookies  = new AuthCookieBridge( $settings, $mapper );
@@ -65,9 +77,8 @@ final class Plugin {
 		( new UrlRewriter( $mapper ) )->boot();
 		$cookies->boot();
 		( new RequestGuard( $settings, $mapper ) )->boot();
-		( new HtmlCleaner( $settings, $mapper ) )->boot();
+		( new HtmlCleaner( $settings ) )->boot();
 		$verifier->boot();
-		( new Updater( $settings ) )->boot();
 
 		if ( is_admin() ) {
 			( new AdminPage( $settings, $mapper, new ServerConfig( $mapper, $settings ), $verifier, $cookies ) )->boot();
