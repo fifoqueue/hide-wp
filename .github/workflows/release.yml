@@ -69,7 +69,22 @@ jobs:
           set -euo pipefail
           if [[ -f composer.json ]]; then
             composer validate --no-check-publish
-            composer audit --locked --no-interaction
+
+            locked_package_count="$(php -r '
+                $lock = json_decode(
+                    file_get_contents("composer.lock"),
+                    true,
+                    512,
+                    JSON_THROW_ON_ERROR
+                );
+                echo count($lock["packages"] ?? []) + count($lock["packages-dev"] ?? []);
+              ')"
+
+            if (( locked_package_count > 0 )); then
+              composer audit --locked --no-interaction
+            else
+              echo 'No locked Composer packages to audit.'
+            fi
           fi
 
       - name: Validate translations
